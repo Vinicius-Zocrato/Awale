@@ -51,8 +51,11 @@ void matchPrint(const Match *m)
     }
     if(m->moveSequences == NULL) {
         printf("No moves played yet.\n");
-        return;
+        return; 
     }
+
+
+    
 }
 
 Match matchFindMatchInCsv(int matchId)
