@@ -1,0 +1,49 @@
+- on choisit le sense de rotation en début de partie
+- tu peux pas prendre toutes les graines d'un adversaire
+- si tas plus de 12, tu peux pas remplir la case d'ou tu viens de piocher
+- si ton adversaire peux pas jouer, tes obligé de lui donner des graines, si tu peux pas tu récupères tout le reste (cest bien de le laisser en famine)
+- condition d'arrêt: un joueur a plus que 25 graines, famine ou quand il n'est plus possible de capturer d'autres graines (toutes les cases sont à 1, alors on tourne en boucle)
+- tu peux pas recolter de chez toi 
+- on peut pas mettre ou tas pioché
+
+
+penser à comment vérifier si les joueurs sont connectés
+
+
+struct match
+- int id
+- bool finished
+- Player joueurs[2]
+- int winner (2 si en cours, -1 si abandonnée)
+- int scores[2]
+- int* moveSequences
+- Board* board
+- (chat)
+- (time_t lastActivity;)
+- print()
+match.start(sens)
+
+struct board
+- int[12] pitList
+- sens (1 ou -1), nextPit = (pit + sens + 12) % 12;
+- int move(tile) - return = points marqués avec move
+- isMoveLegal()
+- int whoseTurn
+- checkGameOver
+- print()
+
+struct player
+- int id
+- int[] matchId
+- String username
+- Match* matchesPlayed
+- int playingMatchID (si les 2 joueurs déconnectent, on annule le match et =null)
+- print()
+- (friends)
+- (conversations)
+
+
+mutex pour verrouiller le plateau pour synchro
+
+
+on a decidé de ne pas mettre status dans Player puisque match va aller chopper les infos de player depuis le csv, ce qui fait que l'objet stocké est statique. On verra pas les changements de player pendant le match.
