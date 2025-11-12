@@ -12,20 +12,20 @@ bool boardIsMoveLegal(const Board *b, int pit, int playerMatchId)
         
         return false;
     }
-    if (pit < 0 || pit >= 12) return false;
+    if (pit <= 0 || pit > 12) return false;
 
     if (b->pits[pit] == 0) {
-        printf("No stones in the pit");
+        printf("No stones in the pit\n");
         return false;
     }
 
-    if (b->whoseTurn == 0 && pit>=6){
-        printf("Player 1 must play in pits 1 to 6");
+    if (b->whoseTurn == 0 && pit>6){
+        printf("Player 1 must play in pits 1 to 6\n");
         return false;
     }
 
-    if (b->whoseTurn == 1 && pit<6){
-        printf("Player 2 must play in pits 7 to 12");
+    if (b->whoseTurn == 1 && pit<7){
+        printf("Player 2 must play in pits 7 to 12\n");
         return false;
     }
 
@@ -88,7 +88,7 @@ void boardPrint(const Board *b)
         printf("Board State:\n");
         printf("| ");
         for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[i]);
+            printf("%d | ", b->pits[6-i-1]);
         printf("\n-------------------------\n| ");
         for (int i = 0; i < 6; i++)
             printf("%d | ", b->pits[i+6]);
