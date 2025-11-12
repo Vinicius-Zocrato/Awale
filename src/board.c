@@ -1,32 +1,37 @@
 #include "board.h"
 #include "match.h"
 
-
 bool boardIsMoveLegal(const Board *b, int pit, int playerMatchId)
 {
-    if (b == NULL) {
+    if (b == NULL)
+    {
         fprintf(stderr, "Board pointer is NULL in ISMOVELEGAL.\n");
         return false;
     }
 
-    if (b->whoseTurn != playerMatchId) {
-        printf("It's Player %d's turn, and you're Player %d !\n", b->whoseTurn+1, playerMatchId+1);
-        
+    if (b->whoseTurn != playerMatchId)
+    {
+        printf("It's Player %d's turn, and you're Player %d !\n", b->whoseTurn + 1, playerMatchId + 1);
+
         return false;
     }
-    if (pit <= 0 || pit > 12) return false;
+    if (pit <= 0 || pit > 12)
+        return false;
 
-    if (b->pits[pit] == 0) {
+    if (b->pits[pit] == 0)
+    {
         printf("No stones in the pit\n");
         return false;
     }
 
-    if (b->whoseTurn == 0 && pit>6){
+    if (b->whoseTurn == 0 && pit > 6)
+    {
         printf("Player 1 must play in pits 1 to 6\n");
         return false;
     }
 
-    if (b->whoseTurn == 1 && pit<7){
+    if (b->whoseTurn == 1 && pit < 7)
+    {
         printf("Player 2 must play in pits 7 to 12\n");
         return false;
     }
@@ -36,18 +41,20 @@ bool boardIsMoveLegal(const Board *b, int pit, int playerMatchId)
 
 int boardMove(Board *b, int pit)
 {
-    if (b == NULL) {
+    if (b == NULL)
+    {
         fprintf(stderr, "Board pointer is NULL in MOVE.\n");
         return -1;
     }
 
-    pit = pit-1; // Convert to 0-based index
+    pit = pit - 1; // Convert to 0-based index
 
     int stones = b->pits[pit];
     b->pits[pit] = 0;
     int index = pit;
 
-    while (stones > 0) {
+    while (stones > 0)
+    {
         index = (index + b->sens + 12) % 12;
         if (index == pit)
             index = (index + b->sens + 12) % 12; // Skip starting pit
@@ -56,8 +63,10 @@ int boardMove(Board *b, int pit)
     }
 
     int points = 0;
-    if ((b->whoseTurn == 0 && index >= 6) || (b->whoseTurn == 1 && index < 6)){
-        while (b->pits[index] == 2 || b->pits[index] == 3) {
+    if ((b->whoseTurn == 0 && index >= 6) || (b->whoseTurn == 1 && index < 6))
+    {
+        while (b->pits[index] == 2 || b->pits[index] == 3)
+        {
             points += b->pits[index];
             b->pits[index] = 0;
             index = (index - b->sens + 12) % 12;
@@ -70,42 +79,45 @@ int boardMove(Board *b, int pit)
 
 void boardPrint(const Board *b)
 {
-    if (b == NULL) {
+    if (b == NULL)
+    {
         fprintf(stderr, "Board pointer is NULL in PRINT.\n");
         return;
     }
 
-    if(b->whoseTurn == 0){
+    if (b->whoseTurn == 0)
+    {
         printf("Board State:\n");
         printf("| ");
         for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[11-i]);
+            printf("%d | ", b->pits[11 - i]);
         printf("\n-------------------------\n| ");
         for (int i = 0; i < 6; i++)
             printf("%d | ", b->pits[i]);
         printf("\n");
-        printf("Next turn: Player %d\n", b->whoseTurn+1);
+        printf("Next turn: Player %d\n", b->whoseTurn + 1);
         printf("Board sens: %d\n\n", b->sens);
     }
 
-    else{
+    else
+    {
         printf("Board State:\n");
         printf("| ");
         for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[6-i-1]);
+            printf("%d | ", b->pits[6 - i - 1]);
         printf("\n-------------------------\n| ");
         for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[i+6]);
+            printf("%d | ", b->pits[i + 6]);
         printf("\n");
-        printf("Next turn: Player %d\n", b->whoseTurn+1);
+        printf("Next turn: Player %d\n", b->whoseTurn + 1);
         printf("Board sens: %d\n\n", b->sens);
     }
-
 }
 
 void boardStartGame(Board *b, int direction)
 {
-    if (b == NULL) {
+    if (b == NULL)
+    {
         fprintf(stderr, "Board pointer is NULL in STARTGAME.\n");
         return;
     }
@@ -119,7 +131,8 @@ void boardStartGame(Board *b, int direction)
 void boardDestroy(Board *b)
 {
     // No dynamic memory to free currently
-    if (b == NULL) {
+    if (b == NULL)
+    {
         fprintf(stderr, "Board pointer is NULL in DESTROY.\n");
         return;
     }

@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "player.h"
-#include "board.h"
-#include "match.h"
+#include "src/player.h"
+#include "src/board.h"
+#include "server_match.h"
 
 int nextPlayerID = 1;
 int nextMatchID = 1;
@@ -24,24 +24,12 @@ void testBoard()
     boardPrint(&b);
 }
 
-void testPlayer()
-{
-    Player p;
-    playerInit(&p, nextPlayerID, "Alice");
-    playerPrint(&p);
-}
-
 void testMatch()
 {
-    Match m;
-    Player p1;
-    playerInit(&p1, nextPlayerID, "Eugenie");
+    ServerMatch m;
 
-    Player p2;
-    playerInit(&p2, nextPlayerID, "Vinicius");
-
-    matchInit(&m, nextMatchID, p1.id, p2.id, 1);
-    matchPrint(&m);
+    matchInit(&m, nextMatchID, nextPlayerID, nextPlayerID + 1, 1);
+    boardPrint(m.board);
 }
 
 int main()
@@ -50,14 +38,9 @@ int main()
     // testPlayer();
     // testBoard();
     // testMatch();
-    Match m;
-    Player p1;
-    playerInit(&p1, nextPlayerID, "Eugenie");
+    ServerMatch m;
 
-    Player p2;
-    playerInit(&p2, nextPlayerID, "Vinicius");
-
-    matchInit(&m, nextMatchID, p1.id, p2.id, 1);
+    matchInit(&m, nextMatchID, nextPlayerID, nextPlayerID + 1, 1);
     Board *board = m.board;
 
     int playingPlayerID = 0;
