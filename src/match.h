@@ -14,19 +14,20 @@
 #define PLAYER1_WIN 0
 #define PLAYER2_WIN 1
 
-typedef struct {
+typedef struct
+{
     int id;
     bool finished;
     int playersID[2]; // player in position 0 is player 1, position 1 is player 2
     Player players[2];
-    //We are storing players by value during the match, changes to player conditions wont be reflected during the match
+    // We are storing players by value during the match, changes to player conditions wont be reflected during the match
 
     int winner; //-1 if abandoned, 0 if player1 wins, 1 if player2 wins, 2 if ongoing
     int scores[2];
-    int* moveSequences;
+    int *moveSequences;
     int moveCount;
     int moveCapacity;
-    Board* board;
+    Board *board;
 } Match;
 
 void matchInit(Match *m, int id, int playerId1, int playerId2, int sens);
@@ -35,9 +36,7 @@ void matchPrint(const Match *m);
 Player matchFindPlayerInCsv(int playerId1, int playerId2);
 void matchStoreInCSV(const Match *m);
 void matchDestroy(Match *m);
-bool matchIsGameOver(const Match *m);
-bool matchMove(Match *m, int pit);
+bool matchIsGameOver(Match *m);
+void matchMove(Match *m, int pit);
 
 #endif
-
-
