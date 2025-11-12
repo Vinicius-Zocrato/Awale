@@ -123,18 +123,19 @@ static void app(void)
             if (FD_ISSET(clients[i].sock, &rdfs))
             {
                Client *client = &clients[i];
+               printf("Client connected on sock %d \n", client->sock);
                int c = read_client(clients[i].sock, buffer);
-
                // Client déconnecté
                if (c == 0)
                {
+                  printf("Disconnecting client on port %d", client->sock);
                   client_disconnected(client, matches, &actualMatches);
                   closesocket(clients[i].sock);
                   remove_client(clients, i, &actual);
                }
                else
                {
-                  message_analyser(matches, &actualMatches, clients, client, actual, buffer);
+                  message_analyzer(matches, &actualMatches, clients, client, actual, buffer);
                   break;
                }
             }
@@ -262,6 +263,14 @@ static int init_connection(void)
       perror("socket()");
       exit(errno);
    }
+   {
+      int opt = 1;
+      if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+      {
+         perror("setsockopt(SO_REUSEADDR)");
+         /* non fatal, continue */
+      }
+   }
 
    sin.sin_addr.s_addr = htonl(INADDR_ANY);
    sin.sin_port = htons(PORT);
@@ -278,6 +287,7 @@ static int init_connection(void)
       perror("listen()");
       exit(errno);
    }
+   printf("Server listening on port %d\n", ntohs(sin.sin_port));
 
    return sock;
 }
@@ -438,12 +448,166 @@ static void challenge(Client *clients, Client *sender, const char *name, int act
       write_client(sender->sock, "Client not found\n");
    }
 }
+static void printTable(const Board *board, int playerNum, int pointsP1, int pointsP2,
+                       char *out, int outSize, const char *labelYou, const char *labelRival)
+{
+   if (out == NULL || outSize <= 0 || board == NULL)
+      return;
+
+   int len = 0;
+   int yourPoints = (playerNum == 0) ? pointsP1 : pointsP2;
+   int rivalPoints = (playerNum == 0) ? pointsP2 : pointsP1;
+
+   len += snprintf(out + len, outSize - len, "%s: %d    %s: %d\n",
+                   labelYou, yourPoints, labelRival, rivalPoints);
+
+   // Top row (pits 12..7 for player 2's view, reversed)
+   len += snprintf(out + len, outSize - len, "  ");
+   for (int i = 11; i >= 6 && len < outSize; i--)
+   {
+      len += snprintf(out + len, outSize - len, " %2d ", board->pits[i]);
+   }
+   len += snprintf(out + len, outSize - len, "\n");
+
+   // Separator
+   len += snprintf(out + len, outSize - len, "  ");
+   for (int i = 0; i < 6 && len < outSize; i++)
+   {
+      len += snprintf(out + len, outSize - len, "----");
+   }
+   len += snprintf(out + len, outSize - len, "\n  ");
+
+   // Bottom row (pits 1..6 for player 1's view)
+   for (int i = 0; i < 6 && len < outSize; i++)
+   {
+      len += snprintf(out + len, outSize - len, " %2d ", board->pits[i]);
+   }
+   len += snprintf(out + len, outSize - len, "\n");
+}
+
+static int gameLoop(ServerMatch *m, int pit, int playerNum)
+{
+   if (m == NULL || m->board == NULL)
+      return -1;
+
+   // Verify move is legal
+   if (!boardIsMoveLegal(m->board, pit, playerNum))
+      return -1;
+
+   // Execute move and get points
+   int points = boardMove(m->board, pit);
+   if (points < 0)
+      return -1;
+
+   // Update scores (boardMove already switched player, so we use the previous player)
+   m->scores[playerNum] += points;
+
+   // Check if game is over
+   if (matchIsGameOver(m))
+   {
+      // Determine winner based on final scores
+      if (m->scores[0] > m->scores[1])
+         return 1; // Player 1 wins
+      else if (m->scores[1] > m->scores[0])
+         return 2; // Player 2 wins
+      else
+         return 0; // Draw (continue or handle separately)
+   }
+
+   return 0; // Game continues
+}
 
 // TODO : changer le printTable
+// static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *sender, const char *buffer)
+// {
+//    // printf("[SERVER DEBUG] accept_challenge\n");
+
+//    if (sender->challengedFrom == NULL)
+//    {
+//       write_client(sender->sock, "You have no challenge to accept\n");
+//       return;
+//    }
+//    if (sender->challengedFrom == sender)
+//    {
+//       write_client(sender->sock, "Wait for your opponent's response\n");
+//       return;
+//    }
+//    if (sender->opponent != NULL)
+//    {
+//       write_client(sender->sock, "You are already in a game\n");
+//       return;
+//    }
+
+//    int i = 0;
+//    char message[BUF_SIZE];
+//    message[0] = 0;
+
+//    Client *challenger = sender->challengedFrom;
+
+//    sender->challengedFrom = NULL;
+//    challenger->challengedFrom = NULL;
+//    sender->opponent = challenger;
+//    challenger->opponent = sender;
+
+//    strncpy(message, sender->name, BUF_SIZE - 1);
+//    strncat(message, " has accepted your challenge!\n", sizeof message - strlen(message) - 1);
+//    write_client(challenger->sock, message);
+//    strncat(message, "Challenge accepted!\n", BUF_SIZE - strlen(message) - 1);
+//    write_client(sender->sock, message);
+
+//    if (rand() % 2 == 0)
+//    {
+//       matches[*currentMatches].player1 = challenger;
+//       matches[*currentMatches].player2 = sender;
+//    }
+//    else
+//    {
+//       matches[*currentMatches].player2 = challenger;
+//       matches[*currentMatches].player1 = sender;
+//    }
+//    for (int j = 0; j < 12; j++)
+//    {
+//       matches[*currentMatches].tab[j] = 4;
+//    }
+
+//    matches[*currentMatches].joueur = PLAYER1;
+//    matches[*currentMatches].pointsP1 = 0;
+//    matches[*currentMatches].pointsP2 = 0;
+//    if (sender->private == 1 || challenger->private == 1)
+//    {
+//       matches[*currentMatches].private = 1;
+//    }
+//    else
+//    {
+//       matches[*currentMatches].private = 0;
+//    }
+//    sender->match = &matches[*currentMatches];
+//    challenger->match = &matches[*currentMatches];
+//    challenger->player = PLAYER1;
+//    sender->player = PLAYER2;
+
+//    strncpy(message, "It's ", BUF_SIZE - 1);
+//    strncat(message, matches[*currentMatches].player1->name, BUF_SIZE - strlen(message) - 1);
+//    strncat(message, "'s turn to play\n", BUF_SIZE - strlen(message) - 1);
+//    write_client(matches[*currentMatches].player2->sock, message);
+
+//    write_client(matches[*currentMatches].player1->sock, "It's your turn to play\n");
+
+//    char *table = malloc(256 * sizeof(char));
+
+//    printTable(matches[*currentMatches].tab, challenger->player, matches[*currentMatches].pointsP1, matches[*currentMatches].pointsP2, table, 256, "Your points", "Rival");
+//    write_client(challenger->sock, table);
+
+//    printTable(matches[*currentMatches].tab, sender->player, matches[*currentMatches].pointsP1, matches[*currentMatches].pointsP2, table, 256, "Your points", "Rival");
+//    write_client(sender->sock, table);
+
+//    (*currentMatches)++;
+//    free(table);
+
+//    // printf("[SERVER DEBUG] accept_challenge end\n");
+// }
 static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *sender, const char *buffer)
 {
-   // printf("[SERVER DEBUG] accept_challenge\n");
-
    if (sender->challengedFrom == NULL)
    {
       write_client(sender->sock, "You have no challenge to accept\n");
@@ -460,7 +624,6 @@ static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *
       return;
    }
 
-   int i = 0;
    char message[BUF_SIZE];
    message[0] = 0;
 
@@ -481,20 +644,20 @@ static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *
    {
       matches[*currentMatches].player1 = challenger;
       matches[*currentMatches].player2 = sender;
+      challenger->player = 0; // Player 1
+      sender->player = 1;     // Player 2
    }
    else
    {
       matches[*currentMatches].player2 = challenger;
       matches[*currentMatches].player1 = sender;
-   }
-   for (int j = 0; j < 12; j++)
-   {
-      matches[*currentMatches].tab[j] = 4;
+      sender->player = 0;     // Player 1
+      challenger->player = 1; // Player 2
    }
 
-   matches[*currentMatches].joueur = PLAYER1;
-   matches[*currentMatches].pointsP1 = 0;
-   matches[*currentMatches].pointsP2 = 0;
+   // Initialize the match with board
+   matchInit(&matches[*currentMatches], *currentMatches, 0, 1, 1);
+
    if (sender->private == 1 || challenger->private == 1)
    {
       matches[*currentMatches].private = 1;
@@ -503,10 +666,9 @@ static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *
    {
       matches[*currentMatches].private = 0;
    }
+
    sender->match = &matches[*currentMatches];
    challenger->match = &matches[*currentMatches];
-   challenger->player = PLAYER1;
-   sender->player = PLAYER2;
 
    strncpy(message, "It's ", BUF_SIZE - 1);
    strncat(message, matches[*currentMatches].player1->name, BUF_SIZE - strlen(message) - 1);
@@ -515,18 +677,20 @@ static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *
 
    write_client(matches[*currentMatches].player1->sock, "It's your turn to play\n");
 
-   char *table = malloc(256 * sizeof(char));
+   char *table = malloc(512 * sizeof(char));
 
-   printTable(matches[*currentMatches].tab, challenger->player, matches[*currentMatches].pointsP1, matches[*currentMatches].pointsP2, table, 256, "Your points", "Rival");
+   printTable(matches[*currentMatches].board, challenger->player,
+              matches[*currentMatches].scores[0], matches[*currentMatches].scores[1],
+              table, 512, "Your points", "Rival");
    write_client(challenger->sock, table);
 
-   printTable(matches[*currentMatches].tab, sender->player, matches[*currentMatches].pointsP1, matches[*currentMatches].pointsP2, table, 256, "Your points", "Rival");
+   printTable(matches[*currentMatches].board, sender->player,
+              matches[*currentMatches].scores[0], matches[*currentMatches].scores[1],
+              table, 512, "Your points", "Rival");
    write_client(sender->sock, table);
 
    (*currentMatches)++;
    free(table);
-
-   // printf("[SERVER DEBUG] accept_challenge end\n");
 }
 
 static void refuse_challenge(Client *sender, const char *buffer)
@@ -566,79 +730,171 @@ static void refuse_challenge(Client *sender, const char *buffer)
 }
 
 // TODO : changer les printTable
-static void play_move(ServerMatch *matches, Client *sender, int relatifMove, int *currentMatches)
-{
+// static void play_move(ServerMatch *matches, Client *sender, int relatifMove, int *currentMatches)
+// {
 
-   // printf("[SERVER DEBUG] play_move\n");
-   // printf("[SERVER DEBUG] relatifMove: %d\n", relatifMove);
+//    // printf("[SERVER DEBUG] play_move\n");
+//    // printf("[SERVER DEBUG] relatifMove: %d\n", relatifMove);
+//    if (sender->match == NULL)
+//    {
+//       write_client(sender->sock, "You are not in a game. To start one you can !challenge a player\n");
+//       return;
+//    }
+//    if (sender->player != sender->match->joueur)
+//    {
+//       write_client(sender->sock, "It's not your turn to play. Wait for your opponet to play his move\n");
+//       return;
+//    }
+
+//    int move = sender->player == PLAYER1 ? relatifMove : relatifMove + 6;
+//    int gameEnded = gameLoop(sender->match->tab, &(sender->match->joueur), move, &(sender->match->pointsP1), &(sender->match->pointsP2));
+
+//    if (gameEnded == -1)
+//    {
+//       write_client(sender->sock, "Invalid move, try again\n");
+//       return;
+//    }
+//    else if (gameEnded == 0)
+//    {
+//       // printf("[gameEnded DEBUG] sender->player %i\n", sender->player);
+//       // printf("[gameEnded DEBUG] sender->opponent->player %i\n", sender->opponent->player);
+//       // printf("[gameEnded DEBUG] pointsP1 %i, pointsP2 %i\n", sender->match->pointsP1, sender->match->pointsP2);
+//       char *table = malloc(256 * sizeof(char));
+//       printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+//       write_client(sender->sock, table);
+//       printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+//       write_client(sender->opponent->sock, table);
+//       free(table);
+//    }
+//    else if (gameEnded == 1 || gameEnded == 2)
+//    {
+//       char *table = malloc(256 * sizeof(char));
+//       if ((gameEnded == 1 && sender->player == PLAYER1) || (gameEnded == 2 && sender->player == PLAYER2)) // Sender won
+//       {
+//          printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+//          write_client(sender->sock, table);
+//          write_client(sender->sock, "You won!\n");
+//          printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+//          write_client(sender->opponent->sock, table);
+//          write_client(sender->opponent->sock, "You lost!\n");
+//       }
+//       else // Opponent won
+//       {
+//          printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+//          write_client(sender->opponent->sock, table);
+//          write_client(sender->opponent->sock, "You won!\n");
+//          printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+//          write_client(sender->sock, table);
+//          write_client(sender->sock, "You lost!\n");
+//       }
+
+//       // TODO : rajouter la logique pour écrire le match dans le CSV
+
+//       remove_match(matches, sender->match, &currentMatches);
+
+//       sender->match = NULL;
+//       sender->opponent->match = NULL;
+//       sender->opponent->opponent = NULL;
+//       sender->opponent = NULL;
+//       free(table);
+//    }
+//    if (1)
+//    {
+//       char *table = malloc(256 * sizeof(char));
+//       printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, sender->name, sender->opponent->name);
+//       // printf("[gameEnded DEBUG] sender->match->observers %i\n", sender->match->observers[0]);
+//       for (int i = 0; i < MAX_CLIENTS; i++)
+//       {
+//          if (sender->match->observers[i] != NULL)
+//          {
+//             write_client(sender->match->observers[i]->sock, table);
+//          }
+//       }
+//       free(table);
+//    }
+// }
+static void play_move(ServerMatch *matches, Client *sender, int relativeMove, int *currentMatches)
+{
    if (sender->match == NULL)
    {
       write_client(sender->sock, "You are not in a game. To start one you can !challenge a player\n");
       return;
    }
-   if (sender->player != sender->match->joueur)
-   {
-      write_client(sender->sock, "It's not your turn to play. Wait for your opponet to play his move\n");
-      return;
-   }
 
-   int move = sender->player == PLAYER1 ? relatifMove : relatifMove + 6;
-   int gameEnded = gameLoop(sender->match->tab, &(sender->match->joueur), move, &(sender->match->pointsP1), &(sender->match->pointsP2));
+   // Convert relative move (0-5) to absolute pit (1-12)
+   int move = sender->player == 0 ? relativeMove + 1 : relativeMove + 7;
+
+   // Execute move and check game status
+   int gameEnded = gameLoop(sender->match, move, sender->player);
 
    if (gameEnded == -1)
    {
       write_client(sender->sock, "Invalid move, try again\n");
       return;
    }
-   else if (gameEnded == 0)
+
+   char *table = malloc(512 * sizeof(char));
+
+   if (gameEnded == 0)
    {
-      // printf("[gameEnded DEBUG] sender->player %i\n", sender->player);
-      // printf("[gameEnded DEBUG] sender->opponent->player %i\n", sender->opponent->player);
-      // printf("[gameEnded DEBUG] pointsP1 %i, pointsP2 %i\n", sender->match->pointsP1, sender->match->pointsP2);
-      char *table = malloc(256 * sizeof(char));
-      printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+      // Game continues
+      printTable(sender->match->board, sender->player,
+                 sender->match->scores[0], sender->match->scores[1],
+                 table, 512, "Your points", "Rival");
       write_client(sender->sock, table);
-      printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+
+      printTable(sender->match->board, sender->opponent->player,
+                 sender->match->scores[0], sender->match->scores[1],
+                 table, 512, "Your points", "Rival");
       write_client(sender->opponent->sock, table);
-      free(table);
    }
    else if (gameEnded == 1 || gameEnded == 2)
    {
-      char *table = malloc(256 * sizeof(char));
-      if ((gameEnded == 1 && sender->player == PLAYER1) || (gameEnded == 2 && sender->player == PLAYER2)) // Sender won
+      // Game ended - determine winner
+      if ((gameEnded == 1 && sender->player == 0) || (gameEnded == 2 && sender->player == 1))
       {
-         printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+         // Sender won
+         printTable(sender->match->board, sender->player,
+                    sender->match->scores[0], sender->match->scores[1],
+                    table, 512, "Your points", "Rival");
          write_client(sender->sock, table);
          write_client(sender->sock, "You won!\n");
-         printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+
+         printTable(sender->match->board, sender->opponent->player,
+                    sender->match->scores[0], sender->match->scores[1],
+                    table, 512, "Your points", "Rival");
          write_client(sender->opponent->sock, table);
          write_client(sender->opponent->sock, "You lost!\n");
       }
-      else // Opponent won
+      else
       {
-         printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+         // Opponent won
+         printTable(sender->match->board, sender->opponent->player,
+                    sender->match->scores[0], sender->match->scores[1],
+                    table, 512, "Your points", "Rival");
          write_client(sender->opponent->sock, table);
          write_client(sender->opponent->sock, "You won!\n");
-         printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
+
+         printTable(sender->match->board, sender->player,
+                    sender->match->scores[0], sender->match->scores[1],
+                    table, 512, "Your points", "Rival");
          write_client(sender->sock, table);
          write_client(sender->sock, "You lost!\n");
       }
 
-      // TODO : rajouter la logique pour écrire le match dans le CSV
-
-      remove_match(matches, sender->match, &currentMatches);
+      // Clean up match
+      remove_match(matches, sender->match, currentMatches);
+      matchDestroy(sender->match);
 
       sender->match = NULL;
       sender->opponent->match = NULL;
       sender->opponent->opponent = NULL;
       sender->opponent = NULL;
-      free(table);
    }
-   if (1)
+
+   // Notify observers
+   if (sender->match != NULL)
    {
-      char *table = malloc(256 * sizeof(char));
-      printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, sender->name, sender->opponent->name);
-      // printf("[gameEnded DEBUG] sender->match->observers %i\n", sender->match->observers[0]);
       for (int i = 0; i < MAX_CLIENTS; i++)
       {
          if (sender->match->observers[i] != NULL)
@@ -646,8 +902,9 @@ static void play_move(ServerMatch *matches, Client *sender, int relatifMove, int
             write_client(sender->match->observers[i]->sock, table);
          }
       }
-      free(table);
    }
+
+   free(table);
 }
 
 static void change_client_profile(Client *sender, const char *new_profile)
@@ -1008,14 +1265,28 @@ static void command_list(Client *sender)
    write_client(sender->sock, "!commands: list of commands\n");
 }
 
+bool login(char *username, char *password)
+{
+   if (strcmp(username, "test") == 0 || strcmp(password, "test") == 0)
+   {
+      return true;
+   }
+   if (strcmp(username, "test2") == 0 || strcmp(password, "test2") == 0)
+   {
+      return true;
+   }
+   printf("Login not recognized");
+   return false;
+}
 // Message analyser-----------------------------------------------------------------------------------------------------------------
 
 // TODO : enlever signin, changer les commandes pour avoir un truc plus lisible et peut-etre bloquer leurs appels si on est en match
-static void message_analyser(ServerMatch *matches, int *currentMatches, Client *clients, Client *sender, int actual, const char *buffer)
+static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *clients, Client *sender, int actual, char *buffer)
 {
    if (sender->name[0] == '\0')
    {
       // printf("[SERVER DEBUG] %s\n", buffer);
+      printf("ok");
       if (buffer[0] == '!')
       {
          if (strncmp(buffer, "!login ", 7) == 0)
@@ -1024,7 +1295,7 @@ static void message_analyser(ServerMatch *matches, int *currentMatches, Client *
             // Returns first token
             char *user = strtok(loginfo, " ");
             char *pswrd = strtok(NULL, " ");
-            // printf("[SERVER DEBUG] %s %s\n", user, pswrd);
+            printf("[SERVER DEBUG] %s %s\n", user, pswrd);
 
             if (user == NULL || pswrd == NULL)
             {
@@ -1060,11 +1331,11 @@ static void message_analyser(ServerMatch *matches, int *currentMatches, Client *
                write_client(sender->sock, "Invalid singin. Correct usage is !singin [username] [password]\n");
                return;
             }
-            if (!singin(user, pswrd))
-            {
-               write_client(sender->sock, "This user is already taken, usernames are unique. Try an other one!\n");
-               return;
-            }
+            // if (!singin(user, pswrd))
+            // {
+            //    write_client(sender->sock, "This user is already taken, usernames are unique. Try an other one!\n");
+            //    return;
+            // }
 
             // printf("[SERVER DEBUG] %s %s\n", user, pswrd);
             strcpy(sender->name, user);
@@ -1076,8 +1347,8 @@ static void message_analyser(ServerMatch *matches, int *currentMatches, Client *
       write_client(sender->sock, "Try !login or !singin to continue\n");
       return;
    }
-   // printf("[SERVER DEBUG] %s\n", buffer);
-   if (buffer[0] == '!')
+   printf("[SERVER DEBUG] %s\n", buffer);
+   if (buffer[0] == '!' || buffer[1] == '!')
    {
       if (strncmp(buffer, "!list", 5) == 0)
       {

@@ -29,7 +29,6 @@ typedef struct in_addr IN_ADDR;
 
 #define CRLF "\r\n"
 #define PORT 1977
-#define MAX_CLIENTS 100
 #define MAX_MATCHES 50
 
 #define BUF_SIZE 1024
@@ -50,15 +49,13 @@ static void send_message_to_all_clients(Client *clients, Client client, int actu
 static void send_message_to_client_by_name(Client *clients, const char *name, int actual, const char *buffer, Client *sender);
 static void remove_client(Client *clients, int to_remove, int *actual);
 static void clear_clients(Client *clients, int actual);
-static void load_users();
-static void save_users();
 
 static void client_disconnected(Client *client, ServerMatch *matches, int *actualMatches);
 static void remove_Match(ServerMatch *matches, ServerMatch *match, int *actualMatches);
 static int username_is_name_taken(Client *clients, int actual, const char *name);
 
 // Commands
-static void message_analyser(ServerMatch *matches, int *actualMatches, Client *clients, Client *sender, int actual, const char *buffer);
+static void message_analyzer(ServerMatch *matches, int *actualMatches, Client *clients, Client *sender, int actual, char *buffer);
 static void list(Client *clients, Client sender, int actual);
 static void challenge(Client *clients, Client *sender, const char *name, int actual, const char *buffer);
 static void accept_challenge(ServerMatch *matches, int *actualMatches, Client *sender, const char *buffer);

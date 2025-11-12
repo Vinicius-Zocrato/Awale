@@ -1,92 +1,60 @@
-# # === Variables ===
-# CC = gcc
-# CFLAGS = -Wall -Wextra -std=c11 -I./src
-# LDFLAGS =
-
-# # Dossiers
-# SRC_DIR = src
-# BIN_DIR = bin
-# SERVER_DIR = server
-# CLIENT_DIR = client
-
-# # Fichiers source
-# SERVER_SRC = $(SERVER_DIR)/server.c $(SRC_DIR)/board.c $(SRC_DIR)/match.c $(SRC_DIR)/player.c
-# CLIENT_SRC = $(CLIENT_DIR)/client.c $(SRC_DIR)/board.c $(SRC_DIR)/match.c $(SRC_DIR)/player.c
-
-# # Fichiers objets
-# SERVER_OBJ = $(SERVER_SRC:.c=.o)
-# CLIENT_OBJ = $(CLIENT_SRC:.c=.o)
-
-# # Exécutables
-# SERVER_BIN = $(BIN_DIR)/server
-# CLIENT_BIN = $(BIN_DIR)/client
-
-# # === Règles ===
-# all: $(BIN_DIR) $(SERVER_BIN) $(CLIENT_BIN)
-
-# $(BIN_DIR):
-# 	mkdir -p $(BIN_DIR)
-
-# $(SERVER_BIN): $(SERVER_OBJ)
-# 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-# $(CLIENT_BIN): $(CLIENT_OBJ)
-# 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-# # Compilation générique
-# %.o: %.c
-# 	$(CC) $(CFLAGS) -c $< -o $@
-
-# # Nettoyage
-# clean:
-# 	rm -f $(SRC_DIR)/*.o $(SERVER_DIR)/*.o $(CLIENT_DIR)/*.o
-
-# fclean: clean
-# 	rm -f $(SERVER_BIN) $(CLIENT_BIN)
-
-# re: fclean all
-
-# .PHONY: all clean fclean re
-
-# === CONFIGURATION ===
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -I./src -I.     # include racine + src
+CFLAGS = -Wall -Wextra -std=c11 -I./src -I.
 LDFLAGS =
-TARGET = main
 
 SRC_DIR = src
 OBJ_DIR = obj
+BIN_DIR = bin
+SERVER_DIR = server
+CLIENT_DIR = client
 
-SRC_FILES = $(SRC_DIR)/board.c server_match.c main.c
-OBJ_FILES = $(SRC_FILES:%.c=$(OBJ_DIR)/%.o)
+# === Main (simple) ===
+MAIN_SRC = $(SRC_DIR)/board.c server_match.c main.c
+MAIN_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(MAIN_SRC))
 
-# === RULES ===
-all: $(TARGET)
+# === Server / Client (full) ===
+SERVER_SRC = $(SERVER_DIR)/server.c server_match.c $(SRC_DIR)/board.c $(SRC_DIR)/match.c $(SRC_DIR)/player.c
+CLIENT_SRC = $(CLIENT_DIR)/client.c server_match.c $(SRC_DIR)/board.c $(SRC_DIR)/match.c $(SRC_DIR)/player.c
+SERVER_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(SERVER_SRC))
+CLIENT_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(CLIENT_SRC))
 
-# Création du binaire principal
-$(TARGET): $(OBJ_FILES)
-	@echo "🔧 Linking $@ ..."
-	$(CC) $(OBJ_FILES) -o $@ $(LDFLAGS)
+.PHONY: all server client main clean fclean re
 
-# Compilation des .c → .o
+# Default: build server + client (ancien comportement)
+all: $(BIN_DIR) server client
+
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+server: $(SERVER_OBJS)
+	@echo "🔧 Linking server..."
+	$(CC) $(SERVER_OBJS) -o $(BIN_DIR)/server $(LDFLAGS)
+
+client: $(CLIENT_OBJS)
+	@echo "🔧 Linking client..."
+	$(CC) $(CLIENT_OBJS) -o $(BIN_DIR)/client $(LDFLAGS)
+
+# Build only the simple main executable
+main: $(MAIN_OBJS)
+	@echo "🔧 Linking main ..."
+	$(CC) $(MAIN_OBJS) -o main $(LDFLAGS)
+
+# Generic .c -> obj/.o rule
 $(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
 	@echo "🧩 Compiling $< ..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Création du dossier obj si inexistant
+# Ensure obj subfolders exist
 $(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)/$(SRC_DIR)
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR) $(OBJ_DIR)/$(SERVER_DIR) $(OBJ_DIR)/$(CLIENT_DIR)
 
-# Nettoyage
 clean:
 	@echo "🧹 Cleaning object files..."
 	rm -rf $(OBJ_DIR)
 
 fclean: clean
-	@echo "🧽 Removing executable..."
-	rm -f $(TARGET)
+	@echo "🧽 Removing executables..."
+	rm -f $(BIN_DIR)/server $(BIN_DIR)/client main
 
 re: fclean all
-
-.PHONY: all clean fclean re

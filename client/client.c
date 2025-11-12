@@ -31,12 +31,13 @@ static void end(void)
 static void app(const char *address)
 {
    SOCKET sock = init_connection(address);
+   printf("Connected to server %s\n", address);
    char buffer[BUF_SIZE];
 
    fd_set rdfs;
 
    /* send our name */
-   // write_server(sock, "Rafael");
+   write_server(sock, "Rafael");
 
    while (1)
    {
