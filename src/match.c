@@ -1,4 +1,5 @@
 #include "match.h"
+#include "player.h"
 
 //finir match -> verifier si tableau matchId des joueurs est assez grand
 
@@ -12,8 +13,8 @@ void matchInit(Match *m, int id, int playerId1, int playerId2, int sens)
     m->id= id;
     m->finished= false;
 
-    players[0] = matchFindPlayerInCsv(playerId1);
-    players[1] = matchFindPlayerInCsv(playerId2);
+    m->players[0] = playerFindPlayerInCsv(playerId1);
+    m->players[1] = playerFindPlayerInCsv(playerId2);
 
     m->winner= ONGOING;
 
@@ -22,6 +23,7 @@ void matchInit(Match *m, int id, int playerId1, int playerId2, int sens)
 
     m->moveSequences= (int*)malloc(20*sizeof(int)); 
     Board board;
+    boardStartGame(&board, 1);
     m->board = board;
     matchStart(m, sens);
 
@@ -32,7 +34,7 @@ void matchStart(Match *m, int sens)
         fprintf(stderr, "Match pointer is NULL in mSTART.\n");
         return;
     }
-    boardStartGame(m->board, sens);
+    boardStartGame(&(m->board), sens);
 }
 
 void matchEnd(Match *m)
@@ -51,17 +53,21 @@ void matchPrint(const Match *m)
     }
     if(m->moveSequences == NULL) {
         printf("No moves played yet.\n");
-        return; 
+        return;
     }
 
-
-    
+    printf("Match ID: %d\n", m->id);
+    printf("Winner: %d\n", m->winner);
+    printf("Score P1: %d, Score P2: %d\n", m->scores[0], m->scores[1]);
+    boardPrint(&(m->board));
 }
 
 Match matchFindMatchInCsv(int matchId)
 {
     //TODO: implement
-    return NULL;
+    Match m;
+    m.id = matchId;
+    return m;
 }
 
 void matchStoreInCSV(const Match *m)

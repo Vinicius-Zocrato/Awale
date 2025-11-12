@@ -3,7 +3,7 @@ TARGET = awale
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 
-SRC = main.c board.c player.c match.c
+SRC = board.c player.c match.c main.c
 OBJ = $(SRC:.c=.o)
 
 $(TARGET): $(OBJ)

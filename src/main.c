@@ -27,12 +27,52 @@ void testPlayer() {
     Player p;
     playerInit(&p, nextPlayerID, "Alice");
     playerPrint(&p);
+
 }
 
+void testMatch()
+{
+    Match m;
+    Player p1;
+    playerInit(&p1, nextPlayerID, "Eugenie");
 
-int main() {
+    Player p2;
+    playerInit(&p2, nextPlayerID, "Vinicius");
 
-    testPlayer();
+    matchInit(&m, nextMatchID, p1.id, p2.id, 1);
+    matchPrint(&m);
+}
+
+int main(){
+
+    // testPlayer();
+    // testBoard();
+    // testMatch();
+    Match m;
+    Player p1;
+    playerInit(&p1, nextPlayerID, "Eugenie");
+
+    Player p2;
+    playerInit(&p2, nextPlayerID, "Vinicius");
+
+    matchInit(&m, nextMatchID, p1.id, p2.id, 1);
+    Board* board = &(m.board);
+
+    int playingPlayerID = 0;
+    while(m.winner == ONGOING)
+    {
+
+        boardPrint(board);
+        int move;
+        scanf("%d", &move);
+        // TO DO: fix bug - entering a letter breaks the code
+        if(boardIsMoveLegal(board, move, playingPlayerID)){
+            boardMove(board, move);
+            if(playingPlayerID==0){playingPlayerID=1;}
+            else if(playingPlayerID==1) {playingPlayerID=0;}
+        }
+    
+    }
 
     return 0;
 }

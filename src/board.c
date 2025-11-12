@@ -4,12 +4,31 @@ bool boardIsMoveLegal(const Board *b, int pit, int playerMatchId)
 {
     if (b == NULL) {
         fprintf(stderr, "Board pointer is NULL in ISMOVELEGAL.\n");
-        return;
+        return false;
     }
 
-    if (b->whoseTurn != playerMatchId) return false;
+    if (b->whoseTurn != playerMatchId) {
+        printf("It's Player %d's turn, and you're Player %d !\n", b->whoseTurn+1, playerMatchId+1);
+        
+        return false;
+    }
     if (pit < 0 || pit >= 12) return false;
-    if (b->pits[pit] == 0) return false;
+
+    if (b->pits[pit] == 0) {
+        printf("No stones in the pit");
+        return false;
+    }
+
+    if (b->whoseTurn == 0 && pit>=6){
+        printf("Player 1 must play in pits 1 to 6");
+        return false;
+    }
+
+    if (b->whoseTurn == 1 && pit<6){
+        printf("Player 2 must play in pits 7 to 12");
+        return false;
+    }
+
     return true;
 }
 
@@ -17,10 +36,11 @@ int boardMove(Board *b, int pit)
 {
     if (b == NULL) {
         fprintf(stderr, "Board pointer is NULL in MOVE.\n");
-        return;
+        return -1;
     }
 
     pit = pit-1; // Convert to 0-based index
+
     int stones = b->pits[pit];
     b->pits[pit] = 0;
     int index = pit;
@@ -51,11 +71,32 @@ void boardPrint(const Board *b)
         return;
     }
 
-    printf("Board State:\n");
-    for (int i = 0; i < 12; i++)
-        printf("Pit %d: %d stones\n", i+1, b->pits[i]);
-    printf("Next turn: Player %d\n", b->whoseTurn);
-    printf("Board sens: %d\n\n", b->sens);
+    if(b->whoseTurn == 0){
+        printf("Board State:\n");
+        printf("| ");
+        for (int i = 0; i < 6; i++)
+            printf("%d | ", b->pits[11-i]);
+        printf("\n-------------------------\n| ");
+        for (int i = 0; i < 6; i++)
+            printf("%d | ", b->pits[i]);
+        printf("\n");
+        printf("Next turn: Player %d\n", b->whoseTurn+1);
+        printf("Board sens: %d\n\n", b->sens);
+    }
+
+    else{
+        printf("Board State:\n");
+        printf("| ");
+        for (int i = 0; i < 6; i++)
+            printf("%d | ", b->pits[i]);
+        printf("\n-------------------------\n| ");
+        for (int i = 0; i < 6; i++)
+            printf("%d | ", b->pits[i+6]);
+        printf("\n");
+        printf("Next turn: Player %d\n", b->whoseTurn+1);
+        printf("Board sens: %d\n\n", b->sens);
+    }
+
 }
 
 bool boardIsGameOver(const Board *b)
@@ -64,7 +105,7 @@ bool boardIsGameOver(const Board *b)
 
     if (b == NULL) {
         fprintf(stderr, "Board pointer is NULL in ISGAMEOVER.\n");
-        return;
+        return false;
     }
 
 
