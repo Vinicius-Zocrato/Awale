@@ -71,6 +71,7 @@ int main(){
             if(playingPlayerID==0){playingPlayerID=1;}
             else if(playingPlayerID==1) {playingPlayerID=0;}
         }
+        if(boardIsGameOver(board,m)){}
     
     }
 

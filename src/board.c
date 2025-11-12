@@ -1,4 +1,6 @@
 #include "board.h"
+#include "match.h"
+
 
 bool boardIsMoveLegal(const Board *b, int pit, int playerMatchId)
 {
@@ -54,10 +56,12 @@ int boardMove(Board *b, int pit)
     }
 
     int points = 0;
-    while (b->pits[index] == 2 || b->pits[index] == 3) {
-        points += b->pits[index];
-        b->pits[index] = 0;
-        index = (index - b->sens + 12) % 12;
+    if ((b->whoseTurn == 0 && index >= 6) || (b->whoseTurn == 1 && index < 6)){
+        while (b->pits[index] == 2 || b->pits[index] == 3) {
+            points += b->pits[index];
+            b->pits[index] = 0;
+            index = (index - b->sens + 12) % 12;
+        }
     }
 
     b->whoseTurn = (b->whoseTurn == 0) ? 1 : 0;
@@ -97,19 +101,6 @@ void boardPrint(const Board *b)
         printf("Board sens: %d\n\n", b->sens);
     }
 
-}
-
-bool boardIsGameOver(const Board *b)
-{
-    //TODO: complete
-
-    if (b == NULL) {
-        fprintf(stderr, "Board pointer is NULL in ISGAMEOVER.\n");
-        return false;
-    }
-
-
-    return false;
 }
 
 void boardStartGame(Board *b, int direction)

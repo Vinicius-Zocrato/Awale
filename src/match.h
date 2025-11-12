@@ -24,17 +24,19 @@ typedef struct {
     int winner; //-1 if abandoned, 0 if player1 wins, 1 if player2 wins, 2 if ongoing
     int scores[2];
     int* moveSequences;
-    Board board;
+    int moveCount;
+    int moveCapacity;
+    Board* board;
 } Match;
 
 void matchInit(Match *m, int id, int playerId1, int playerId2, int sens);
-void matchStart(Match *m, int sens);
 void matchEnd(Match *m);
 void matchPrint(const Match *m);
 Player matchFindPlayerInCsv(int playerId1, int playerId2);
 void matchStoreInCSV(const Match *m);
 void matchDestroy(Match *m);
-
+bool matchIsGameOver(const Match *m);
+bool matchMove(Match *m, int pit);
 
 #endif
 
