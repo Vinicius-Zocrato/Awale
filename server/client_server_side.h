@@ -2,6 +2,7 @@
 #define CLIENT_H
 
 #include "server.h"
+#include "../server_match.h"
 
 typedef struct Client
 {
