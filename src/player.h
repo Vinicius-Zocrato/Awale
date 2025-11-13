@@ -16,9 +16,10 @@ typedef struct {
 
 void playerPrint(const Player *p);
 void playerInit(Player *p, int id, const char *username);
-void playerAddMatch(Player *p, int matchId);
-Player playerFindPlayerInCsv(int playerId1);
 void playerStoreInCSV(const Player *p);
+Player playerLoadPlayerFromCsv(int playerId1);
+void playerUpdateInCSV(const Player *p);
+void playerAddMatch(Player *p, int matchId);
 void playerDestroy(Player *p);
 
 #endif

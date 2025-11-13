@@ -43,12 +43,59 @@ void testMatch()
     matchPrint(&m);
 }
 
+void testPlayerStoreInCSV() {
+    printf("=== Test playerStoreInCSV ===\n");
+    
+    // Test 1 : Joueur avec des matchs
+    Player p1;
+    playerInit(&p1, 1, "Alice");
+    playerAddMatch(&p1, 5);
+    playerAddMatch(&p1, 12);
+    playerAddMatch(&p1, 8);
+    
+    printf("Stockage du joueur 1...\n");
+    playerStoreInCSV(&p1);
+    playerDestroy(&p1);
+    
+    // Test 2 : Joueur sans matchs
+    Player p2;
+    playerInit(&p2, 2, "Bob");
+    
+    printf("Stockage du joueur 2 (sans matchs)...\n");
+    playerStoreInCSV(&p2);
+    playerDestroy(&p2);
+}
+
+void testPlayerLoadFromCsv() {
+    Player p1 = playerLoadPlayerFromCsv(1);
+    Player p2 = playerLoadPlayerFromCsv(2);
+    Player p3 = playerLoadPlayerFromCsv(3);
+    playerDestroy(&p1);
+    playerDestroy(&p2);
+    playerDestroy(&p3);
+}
+
+void testPlayerUpdateCsv(){
+    Player p1 = playerLoadPlayerFromCsv(1);
+
+    playerAddMatch(&p1, 6);
+    playerAddMatch(&p1, 3);
+    playerAddMatch(&p1, 2);
+
+    playerUpdateInCSV(&p1);
+
+    playerDestroy(&p1);
+}
+
 int main(){
 
     // testPlayer();
     // testBoard();
     // testMatch();
-    Match m;
+    //testPlayerStoreInCSV();
+    //testPlayerLoadFromCsv();
+    testPlayerUpdateCsv();
+    /*Match m;
     Player p1;
     playerInit(&p1, nextPlayerID, "Eugenie");
 
@@ -72,7 +119,7 @@ int main(){
             else if(playingPlayerID==1) {playingPlayerID=0;}
         }
     
-    }
+    }*/
 
     return 0;
 }
