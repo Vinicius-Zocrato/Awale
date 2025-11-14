@@ -14,8 +14,8 @@
 //     m->id = id;
 //     m->finished = false;
 
-//     m->players[0] = playerFindPlayerInCsv(playerId1);
-//     m->players[1] = playerFindPlayerInCsv(playerId2);
+//     m->players[0] = playerLoadPlayerFromCsv(playerId1);
+//     m->players[1] = playerLoadPlayerFromCsv(playerId2);
 
 //     m->winner = ONGOING;
 
