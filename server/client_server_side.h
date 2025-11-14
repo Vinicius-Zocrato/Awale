@@ -9,7 +9,7 @@ typedef struct Client
    SOCKET sock;
    char name[BUF_SIZE];
    char profile[BUF_SIZE];
-
+   char password[BUF_SIZE];
    // Games
    struct Client *opponent;
    struct Client *challengedFrom;

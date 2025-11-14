@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -I./src -I.
+CFLAGS = -Wall -Wextra -std=c11 -I./src -I. -I./server
 LDFLAGS =
 
 SRC_DIR = src
@@ -8,19 +8,15 @@ BIN_DIR = bin
 SERVER_DIR = server
 CLIENT_DIR = client
 
-# === Main (simple) ===
-MAIN_SRC = $(SRC_DIR)/board.c server_match.c main.c
-MAIN_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(MAIN_SRC))
-
 # === Server / Client (full) ===
-SERVER_SRC = $(SERVER_DIR)/server.c server_match.c $(SRC_DIR)/board.c $(SRC_DIR)/match.c $(SRC_DIR)/player.c
-CLIENT_SRC = $(CLIENT_DIR)/client.c server_match.c $(SRC_DIR)/board.c $(SRC_DIR)/match.c $(SRC_DIR)/player.c
+SERVER_SRC = $(SERVER_DIR)/server.c $(SERVER_DIR)/client_storage.c server_match.c board.c
+CLIENT_SRC = $(CLIENT_DIR)/client.c $(SERVER_DIR)/client_storage.c server_match.c board.c
 SERVER_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(SERVER_SRC))
 CLIENT_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(CLIENT_SRC))
 
-.PHONY: all server client main clean fclean re
+.PHONY: all server client clean fclean re
 
-# Default: build server + client (ancien comportement)
+# Default: build server + client
 all: $(BIN_DIR) server client
 
 $(BIN_DIR):
@@ -33,11 +29,6 @@ server: $(SERVER_OBJS)
 client: $(CLIENT_OBJS)
 	@echo "🔧 Linking client..."
 	$(CC) $(CLIENT_OBJS) -o $(BIN_DIR)/client $(LDFLAGS)
-
-# Build only the simple main executable
-main: $(MAIN_OBJS)
-	@echo "🔧 Linking main ..."
-	$(CC) $(MAIN_OBJS) -o main $(LDFLAGS)
 
 # Generic .c -> obj/.o rule
 $(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
@@ -55,6 +46,6 @@ clean:
 
 fclean: clean
 	@echo "🧽 Removing executables..."
-	rm -f $(BIN_DIR)/server $(BIN_DIR)/client main
+	rm -f $(BIN_DIR)/server $(BIN_DIR)/client
 
 re: fclean all

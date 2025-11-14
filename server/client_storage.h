@@ -10,5 +10,7 @@ void clientStoreInCSV(const Client *client);
 Client clientLoadFromCSV(const char *username);
 void clientUpdateInCSV(const Client *client);
 bool clientExistInCSV(const char *username);
+bool data_signup(const char *username, const char *mdp);
+bool data_login(const char *username, const char *mdp);
 
 #endif

@@ -1,4 +1,3 @@
-#include "src/board.h"
 #include "server_match.h"
 #include <stdlib.h>
 #include <stdio.h>

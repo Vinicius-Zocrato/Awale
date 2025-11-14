@@ -5,29 +5,35 @@
 
 #define MATCHES_CSV_PATH "data/matches.csv"
 
-void matchStoreInCSV(const ServerMatch *match) {
-    if (match == NULL) {
+void matchStoreInCSV(const ServerMatch *match)
+{
+    if (match == NULL)
+    {
         fprintf(stderr, "Match pointer is NULL\n");
         return;
     }
 
-    FILE* file = fopen(MATCHES_CSV_PATH, "a");
-    if (file == NULL) {
+    FILE *file = fopen(MATCHES_CSV_PATH, "a");
+    if (file == NULL)
+    {
         fprintf(stderr, "Erreur : impossible d'ouvrir matches.csv\n");
         return;
     }
-    
+
     // Vérifier si fichier vide → écrire l'en-tête
     long pos = ftell(file);
-    if (pos == 0) {
+    if (pos == 0)
+    {
         fprintf(file, "id,player1Name,player2Name,winner,score1,score2,boardState,moveSequences,whoseTurn,sens\n");
     }
 
     // Convertir l'état du plateau en chaîne: "4;4;4;4;4;4;4;4;4;4;4;4"
     char boardStateStr[200] = "";
     int offset = 0;
-    for (int i = 0; i < 12; i++) {
-        if (i > 0) {
+    for (int i = 0; i < 12; i++)
+    {
+        if (i > 0)
+        {
             offset += sprintf(boardStateStr + offset, ";");
         }
         offset += sprintf(boardStateStr + offset, "%d", match->board->pits[i]);
@@ -36,8 +42,10 @@ void matchStoreInCSV(const ServerMatch *match) {
     // Convertir la séquence de coups en chaîne: "3;7;2;9"
     char moveSeqStr[500] = "";
     offset = 0;
-    for (int i = 0; i < match->moveCount; i++) {
-        if (i > 0) {
+    for (int i = 0; i < match->moveCount; i++)
+    {
+        if (i > 0)
+        {
             offset += sprintf(moveSeqStr + offset, ";");
         }
         offset += sprintf(moveSeqStr + offset, "%d", match->moveSequences[i]);
@@ -45,31 +53,33 @@ void matchStoreInCSV(const ServerMatch *match) {
 
     // Écrire la ligne
     fprintf(file, "%d,\"%s\",\"%s\",%d,%d,%d,\"%s\",\"%s\",%d,%d\n",
-        match->id,
-        match->player1 ? match->player1->name : "",
-        match->player2 ? match->player2->name : "",
-        match->winner,
-        match->scores[0],
-        match->scores[1],
-        boardStateStr,
-        moveSeqStr,
-        match->board->whoseTurn,
-        match->board->sens);
+            match->id,
+            match->player1 ? match->player1->name : "",
+            match->player2 ? match->player2->name : "",
+            match->winner,
+            match->scores[0],
+            match->scores[1],
+            boardStateStr,
+            moveSeqStr,
+            match->board->whoseTurn,
+            match->board->sens);
 
     fclose(file);
     printf("Match %d sauvegardé dans le CSV\n", match->id);
 }
 
-ServerMatch matchLoadFromCSV(int matchId) {
+ServerMatch matchLoadFromCSV(int matchId)
+{
     ServerMatch match;
-    match.id = -1;  // Par défaut = non trouvé
+    match.id = -1; // Par défaut = non trouvé
     match.board = NULL;
     match.moveSequences = NULL;
     match.player1 = NULL;
     match.player2 = NULL;
 
-    FILE* file = fopen(MATCHES_CSV_PATH, "r");
-    if (file == NULL) {
+    FILE *file = fopen(MATCHES_CSV_PATH, "r");
+    if (file == NULL)
+    {
         fprintf(stderr, "Erreur : impossible d'ouvrir matches.csv\n");
         return match;
     }
@@ -81,13 +91,15 @@ ServerMatch matchLoadFromCSV(int matchId) {
     fgets(line, sizeof(line), file);
 
     // Chercher le match
-    while (fgets(line, sizeof(line), file) != NULL) {
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
         int id;
         sscanf(line, "%d,", &id);
 
-        if (id == matchId) {
+        if (id == matchId)
+        {
             found = true;
-            
+
             char player1Name[BUF_SIZE];
             char player2Name[BUF_SIZE];
             int winner;
@@ -108,7 +120,7 @@ ServerMatch matchLoadFromCSV(int matchId) {
             match.scores[1] = score2;
 
             // Allouer et reconstruire le plateau
-            match.board = (Board*)malloc(sizeof(Board));
+            match.board = (Board *)malloc(sizeof(Board));
             match.board->whoseTurn = whoseTurn;
             match.board->sens = sens;
 
@@ -116,14 +128,16 @@ ServerMatch matchLoadFromCSV(int matchId) {
             int index = 0;
             int offset = 0;
             int len = (int)strlen(boardStateStr);
-            
-            for (int i = 0; i <= len && index < 12; i++) {
-                if (boardStateStr[i] == ';' || boardStateStr[i] == '\0') {
+
+            for (int i = 0; i <= len && index < 12; i++)
+            {
+                if (boardStateStr[i] == ';' || boardStateStr[i] == '\0')
+                {
                     char numStr[20];
                     int numLen = i - offset;
                     strncpy(numStr, &boardStateStr[offset], numLen);
                     numStr[numLen] = '\0';
-                    
+
                     match.board->pits[index] = atoi(numStr);
                     index++;
                     offset = i + 1;
@@ -133,20 +147,23 @@ ServerMatch matchLoadFromCSV(int matchId) {
             // Parser la séquence de coups: "3;7;2;9"
             match.moveCapacity = 20;
             match.moveCount = 0;
-            match.moveSequences = (int*)calloc(match.moveCapacity, sizeof(int));
-            
-            if (strlen(moveSeqStr) > 0) {
+            match.moveSequences = (int *)calloc(match.moveCapacity, sizeof(int));
+
+            if (strlen(moveSeqStr) > 0)
+            {
                 index = 0;
                 offset = 0;
                 len = (int)strlen(moveSeqStr);
-                
-                for (int i = 0; i <= len && index < match.moveCapacity; i++) {
-                    if (moveSeqStr[i] == ';' || moveSeqStr[i] == '\0') {
+
+                for (int i = 0; i <= len && index < match.moveCapacity; i++)
+                {
+                    if (moveSeqStr[i] == ';' || moveSeqStr[i] == '\0')
+                    {
                         char numStr[20];
                         int numLen = i - offset;
                         strncpy(numStr, &moveSeqStr[offset], numLen);
                         numStr[numLen] = '\0';
-                        
+
                         match.moveSequences[index] = atoi(numStr);
                         index++;
                         offset = i + 1;
@@ -159,9 +176,12 @@ ServerMatch matchLoadFromCSV(int matchId) {
         }
     }
 
-    if (found) {
+    if (found)
+    {
         printf("Match %d chargé depuis le CSV\n", matchId);
-    } else {
+    }
+    else
+    {
         fprintf(stderr, "Match %d non trouvé dans le CSV\n", matchId);
     }
 
@@ -169,14 +189,17 @@ ServerMatch matchLoadFromCSV(int matchId) {
     return match;
 }
 
-void matchUpdateInCSV(const ServerMatch *match) {
-    if (match == NULL) {
+void matchUpdateInCSV(const ServerMatch *match)
+{
+    if (match == NULL)
+    {
         fprintf(stderr, "Match pointer is NULL\n");
         return;
     }
 
-    FILE* file = fopen(MATCHES_CSV_PATH, "r");
-    if (file == NULL) {
+    FILE *file = fopen(MATCHES_CSV_PATH, "r");
+    if (file == NULL)
+    {
         fprintf(stderr, "Erreur : impossible d'ouvrir matches.csv\n");
         return;
     }
@@ -186,23 +209,27 @@ void matchUpdateInCSV(const ServerMatch *match) {
     int foundAtLine = -1;
 
     // Lire l'en-tête
-    if (fgets(lines[lineCount], sizeof(lines[0]), file) != NULL) {
+    if (fgets(lines[lineCount], sizeof(lines[0]), file) != NULL)
+    {
         lineCount++;
     }
 
     // Lire toutes les lignes
-    while (fgets(lines[lineCount], sizeof(lines[0]), file) != NULL && lineCount < 1000) {
+    while (fgets(lines[lineCount], sizeof(lines[0]), file) != NULL && lineCount < 1000)
+    {
         int id;
         sscanf(lines[lineCount], "%d,", &id);
-        
-        if (id == match->id && foundAtLine == -1) {
+
+        if (id == match->id && foundAtLine == -1)
+        {
             foundAtLine = lineCount;
         }
         lineCount++;
     }
     fclose(file);
 
-    if (foundAtLine == -1) {
+    if (foundAtLine == -1)
+    {
         fprintf(stderr, "Match %d non trouvé, impossible de mettre à jour\n", match->id);
         return;
     }
@@ -210,8 +237,10 @@ void matchUpdateInCSV(const ServerMatch *match) {
     // Préparer la nouvelle ligne
     char boardStateStr[200] = "";
     int offset = 0;
-    for (int i = 0; i < 12; i++) {
-        if (i > 0) {
+    for (int i = 0; i < 12; i++)
+    {
+        if (i > 0)
+        {
             offset += sprintf(boardStateStr + offset, ";");
         }
         offset += sprintf(boardStateStr + offset, "%d", match->board->pits[i]);
@@ -219,8 +248,10 @@ void matchUpdateInCSV(const ServerMatch *match) {
 
     char moveSeqStr[500] = "";
     offset = 0;
-    for (int i = 0; i < match->moveCount; i++) {
-        if (i > 0) {
+    for (int i = 0; i < match->moveCount; i++)
+    {
+        if (i > 0)
+        {
             offset += sprintf(moveSeqStr + offset, ";");
         }
         offset += sprintf(moveSeqStr + offset, "%d", match->moveSequences[i]);
@@ -241,15 +272,20 @@ void matchUpdateInCSV(const ServerMatch *match) {
 
     // Réécrire le fichier
     file = fopen(MATCHES_CSV_PATH, "w");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         fprintf(stderr, "Erreur : impossible d'ouvrir matches.csv en écriture\n");
         return;
     }
 
-    for (int i = 0; i < lineCount; i++) {
-        if (i == foundAtLine) {
+    for (int i = 0; i < lineCount; i++)
+    {
+        if (i == foundAtLine)
+        {
             fprintf(file, "%s", newLine);
-        } else {
+        }
+        else
+        {
             fprintf(file, "%s", lines[i]);
         }
     }
@@ -258,20 +294,24 @@ void matchUpdateInCSV(const ServerMatch *match) {
     printf("Match %d mis à jour dans le CSV\n", match->id);
 }
 
-bool matchExistsInCSV(int matchId) {
-    FILE* file = fopen(MATCHES_CSV_PATH, "r");
-    if (file == NULL) {
+bool matchExistsInCSV(int matchId)
+{
+    FILE *file = fopen(MATCHES_CSV_PATH, "r");
+    if (file == NULL)
+    {
         return false;
     }
 
     char line[3000];
-    fgets(line, sizeof(line), file);  // Ignorer en-tête
+    fgets(line, sizeof(line), file); // Ignorer en-tête
 
-    while (fgets(line, sizeof(line), file) != NULL) {
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
         int id;
         sscanf(line, "%d,", &id);
-        
-        if (id == matchId) {
+
+        if (id == matchId)
+        {
             fclose(file);
             return true;
         }
@@ -281,9 +321,11 @@ bool matchExistsInCSV(int matchId) {
     return false;
 }
 
-void matchDeleteFromCSV(int matchId) {
-    FILE* file = fopen(MATCHES_CSV_PATH, "r");
-    if (file == NULL) {
+void matchDeleteFromCSV(int matchId)
+{
+    FILE *file = fopen(MATCHES_CSV_PATH, "r");
+    if (file == NULL)
+    {
         fprintf(stderr, "Erreur : impossible d'ouvrir matches.csv\n");
         return;
     }
@@ -292,20 +334,24 @@ void matchDeleteFromCSV(int matchId) {
     int lineCount = 0;
 
     // Lire tout le fichier
-    while (fgets(lines[lineCount], sizeof(lines[0]), file) != NULL && lineCount < 1000) {
+    while (fgets(lines[lineCount], sizeof(lines[0]), file) != NULL && lineCount < 1000)
+    {
         lineCount++;
     }
     fclose(file);
 
     // Réécrire sans la ligne du match
     file = fopen(MATCHES_CSV_PATH, "w");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         fprintf(stderr, "Erreur : impossible d'ouvrir matches.csv en écriture\n");
         return;
     }
 
-    for (int i = 0; i < lineCount; i++) {
-        if (i == 0) {
+    for (int i = 0; i < lineCount; i++)
+    {
+        if (i == 0)
+        {
             // Toujours garder l'en-tête
             fprintf(file, "%s", lines[i]);
             continue;
@@ -313,8 +359,9 @@ void matchDeleteFromCSV(int matchId) {
 
         int id;
         sscanf(lines[i], "%d,", &id);
-        
-        if (id != matchId) {
+
+        if (id != matchId)
+        {
             fprintf(file, "%s", lines[i]);
         }
     }
@@ -323,25 +370,30 @@ void matchDeleteFromCSV(int matchId) {
     printf("Match %d supprimé du CSV\n", matchId);
 }
 
-void matchListAll(int *matchIds, int *count) {
-    if (matchIds == NULL || count == NULL) {
+void matchListAll(int *matchIds, int *count)
+{
+    if (matchIds == NULL || count == NULL)
+    {
         fprintf(stderr, "Paramètres NULL dans matchListAll\n");
         return;
     }
 
     *count = 0;
 
-    FILE* file = fopen(MATCHES_CSV_PATH, "r");
-    if (file == NULL) {
-        return;  // Fichier n'existe pas, liste vide
+    FILE *file = fopen(MATCHES_CSV_PATH, "r");
+    if (file == NULL)
+    {
+        return; // Fichier n'existe pas, liste vide
     }
 
     char line[3000];
-    fgets(line, sizeof(line), file);  // Ignorer en-tête
+    fgets(line, sizeof(line), file); // Ignorer en-tête
 
-    while (fgets(line, sizeof(line), file) != NULL && *count < 1000) {
+    while (fgets(line, sizeof(line), file) != NULL && *count < 1000)
+    {
         int id;
-        if (sscanf(line, "%d,", &id) == 1) {
+        if (sscanf(line, "%d,", &id) == 1)
+        {
             matchIds[*count] = id;
             (*count)++;
         }
@@ -350,8 +402,10 @@ void matchListAll(int *matchIds, int *count) {
     fclose(file);
 }
 
-void matchResume(ServerMatch *match, Client *p1, Client *p2) {
-    if (match == NULL || p1 == NULL || p2 == NULL) {
+void matchResume(ServerMatch *match, Client *p1, Client *p2)
+{
+    if (match == NULL || p1 == NULL || p2 == NULL)
+    {
         fprintf(stderr, "Paramètres NULL dans matchResume\n");
         return;
     }

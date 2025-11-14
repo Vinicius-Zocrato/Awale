@@ -3,7 +3,7 @@
 
 #define MAX_CLIENTS 100
 #include <stdbool.h>
-#include "src/board.h"
+#include "board.h"
 
 #define ABANDONED -1
 #define ONGOING 2

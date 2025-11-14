@@ -10,11 +10,9 @@
 #include "../server_match.h"
 
 // AWALE includes
-#include "../src/match.h"
-#include "../src/player.h"
-#include "../src/board.h"
+#include "../board.h"
 
-// #include "../data/users.h"
+#include "client_storage.h"
 
 static void init(void)
 {
@@ -27,8 +25,6 @@ static void init(void)
       exit(EXIT_FAILURE);
    }
 #endif
-
-   // load_users();
 }
 
 static void end(void)
@@ -36,7 +32,6 @@ static void end(void)
 #ifdef WIN32
    WSACleanup();
 #endif
-   // save_users();
 }
 
 static void app(void)
@@ -62,10 +57,10 @@ static void app(void)
       // add keyboard to rdfs
       FD_SET(STDIN_FILENO, &rdfs);
 
-      /* add the connection socket */
+      // add the connection socket
       FD_SET(sock, &rdfs);
 
-      /* add socket of each client */
+      // add socket of each client
       for (i = 0; i < actual; i++)
       {
          FD_SET(clients[i].sock, &rdfs);
@@ -157,15 +152,12 @@ static void clear_clients(Client *clients, int actual)
 
 static void remove_client(Client *clients, int to_remove, int *actual)
 {
-   /* we remove the client in the array */
    memmove(clients + to_remove, clients + to_remove + 1, (*actual - to_remove - 1) * sizeof(Client));
-   /* number client - 1 */
    (*actual)--;
 }
 
 static void remove_match(ServerMatch *matches, ServerMatch *match, int *currentMatches)
 {
-   // Get index of match
    int to_remove = -1;
    for (int i = 0; i < *currentMatches; i++)
    {
@@ -177,9 +169,7 @@ static void remove_match(ServerMatch *matches, ServerMatch *match, int *currentM
    }
    if (to_remove != -1)
    {
-      /* we remove the match in the array */
       memmove(matches + to_remove, matches + to_remove + 1, (*currentMatches - to_remove - 1) * sizeof(ServerMatch));
-      /* number of matches - 1 */
       (*currentMatches)--;
    }
 }
@@ -210,7 +200,7 @@ static void send_message_to_all_clients(Client *clients, Client sender, int actu
    message[0] = 0;
    for (i = 0; i < actual; i++)
    {
-      /* we don't send message to the sender */
+      // we don't send message to the sender
       if (sender.sock != clients[i].sock)
       {
          if (from_server == 0)
@@ -264,11 +254,14 @@ static int init_connection(void)
       exit(errno);
    }
    {
+      // Après avoir essayé de débouger les connection refused, un modèle d'intelligence
+      // artificielle m'a dit que REUSEADDR permettait de réduire le temps de latence
+      // pour me reconnecter sur le serveur
+
       int opt = 1;
       if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
       {
          perror("setsockopt(SO_REUSEADDR)");
-         /* non fatal, continue */
       }
    }
 
@@ -308,7 +301,7 @@ static int read_client(SOCKET sock, char *buffer)
    if ((n = recv(sock, buffer, BUF_SIZE - 1, 0)) < 0)
    {
       perror("recv()");
-      /* if recv error we disconnect the client */
+      // if recv error we disconnect the client
       n = 0;
    }
 
@@ -338,6 +331,7 @@ int main(int argc, char **argv)
 }
 
 // Commands---------------------------------------------------------------------------------------
+
 static void list_of_online_clients(Client *clients, Client sender, int actual)
 {
    int i = 0;
@@ -437,7 +431,6 @@ static void challenge(Client *clients, Client *sender, const char *name, int act
          }
          strncpy(message, sender->name, BUF_SIZE - 1);
          strncat(message, " is challenging you!\nWrite /yes to accept an /no to refuse", sizeof message - strlen(message) - 1);
-         // strncat(message, buffer, sizeof message - strlen(message) - 1);
          write_client(clients[i].sock, message);
          clients[i].challengedFrom = sender;
          sender->challengedFrom = sender;
@@ -461,7 +454,6 @@ static void printTable(const Board *board, int playerNum, int pointsP1, int poin
    len += snprintf(out + len, outSize - len, "%s: %d    %s: %d\n",
                    labelYou, yourPoints, labelRival, rivalPoints);
 
-   // Top row: pits 12..7 -> indices 11..6 (printed left-to-right as 11 10 9 8 7 6)
    len += snprintf(out + len, outSize - len, "    ");
    for (int i = 11; i >= 6 && len < outSize; i--)
    {
@@ -469,7 +461,7 @@ static void printTable(const Board *board, int playerNum, int pointsP1, int poin
    }
    len += snprintf(out + len, outSize - len, "\n");
 
-   // Separator
+   // Separator line
    len += snprintf(out + len, outSize - len, "  ");
    for (int i = 0; i < 6 && len < outSize; i++)
    {
@@ -477,7 +469,6 @@ static void printTable(const Board *board, int playerNum, int pointsP1, int poin
    }
    len += snprintf(out + len, outSize - len, "\n  ");
 
-   // Bottom row: pits 1..6 -> indices 0..5 (left-to-right)
    for (int i = 0; i <= 5 && len < outSize; i++)
    {
       len += snprintf(out + len, outSize - len, " %2d ", board->pits[i]);
@@ -493,14 +484,12 @@ static int gameLoop(ServerMatch *m, int pit, int playerNum)
       return -1;
    }
 
-   // Verify move is legal
    if (!boardIsMoveLegal(m->board, pit, playerNum))
    {
       printf("move %d by player %d not legal\n", pit, playerNum);
       return -1;
    }
 
-   // Execute move and get points
    int points = boardMove(m->board, pit);
    if (points < 0)
       return -1;
@@ -508,110 +497,22 @@ static int gameLoop(ServerMatch *m, int pit, int playerNum)
    // Update scores (boardMove already switched player, so we use the previous player)
    m->scores[playerNum] += points;
    m->joueur = m->board->whoseTurn;
+
    // Check if game is over
    if (matchIsGameOver(m))
    {
       // Determine winner based on final scores
       if (m->scores[0] > m->scores[1])
-         return 1; // Player 1 wins
+         return 1;
       else if (m->scores[1] > m->scores[0])
-         return 2; // Player 2 wins
+         return 2;
       else
-         return 0; // Draw (continue or handle separately)
+         return 0;
    }
 
    return 0; // Game continues
 }
 
-// TODO : changer le printTable
-// static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *sender, const char *buffer)
-// {
-//    // printf("[SERVER DEBUG] accept_challenge\n");
-
-//    if (sender->challengedFrom == NULL)
-//    {
-//       write_client(sender->sock, "You have no challenge to accept\n");
-//       return;
-//    }
-//    if (sender->challengedFrom == sender)
-//    {
-//       write_client(sender->sock, "Wait for your opponent's response\n");
-//       return;
-//    }
-//    if (sender->opponent != NULL)
-//    {
-//       write_client(sender->sock, "You are already in a game\n");
-//       return;
-//    }
-
-//    int i = 0;
-//    char message[BUF_SIZE];
-//    message[0] = 0;
-
-//    Client *challenger = sender->challengedFrom;
-
-//    sender->challengedFrom = NULL;
-//    challenger->challengedFrom = NULL;
-//    sender->opponent = challenger;
-//    challenger->opponent = sender;
-
-//    strncpy(message, sender->name, BUF_SIZE - 1);
-//    strncat(message, " has accepted your challenge!\n", sizeof message - strlen(message) - 1);
-//    write_client(challenger->sock, message);
-//    strncat(message, "Challenge accepted!\n", BUF_SIZE - strlen(message) - 1);
-//    write_client(sender->sock, message);
-
-//    if (rand() % 2 == 0)
-//    {
-//       matches[*currentMatches].player1 = challenger;
-//       matches[*currentMatches].player2 = sender;
-//    }
-//    else
-//    {
-//       matches[*currentMatches].player2 = challenger;
-//       matches[*currentMatches].player1 = sender;
-//    }
-//    for (int j = 0; j < 12; j++)
-//    {
-//       matches[*currentMatches].tab[j] = 4;
-//    }
-
-//    matches[*currentMatches].joueur = PLAYER1;
-//    matches[*currentMatches].pointsP1 = 0;
-//    matches[*currentMatches].pointsP2 = 0;
-//    if (sender->private == 1 || challenger->private == 1)
-//    {
-//       matches[*currentMatches].private = 1;
-//    }
-//    else
-//    {
-//       matches[*currentMatches].private = 0;
-//    }
-//    sender->match = &matches[*currentMatches];
-//    challenger->match = &matches[*currentMatches];
-//    challenger->player = PLAYER1;
-//    sender->player = PLAYER2;
-
-//    strncpy(message, "It's ", BUF_SIZE - 1);
-//    strncat(message, matches[*currentMatches].player1->name, BUF_SIZE - strlen(message) - 1);
-//    strncat(message, "'s turn to play\n", BUF_SIZE - strlen(message) - 1);
-//    write_client(matches[*currentMatches].player2->sock, message);
-
-//    write_client(matches[*currentMatches].player1->sock, "It's your turn to play\n");
-
-//    char *table = malloc(256 * sizeof(char));
-
-//    printTable(matches[*currentMatches].tab, challenger->player, matches[*currentMatches].pointsP1, matches[*currentMatches].pointsP2, table, 256, "Your points", "Rival");
-//    write_client(challenger->sock, table);
-
-//    printTable(matches[*currentMatches].tab, sender->player, matches[*currentMatches].pointsP1, matches[*currentMatches].pointsP2, table, 256, "Your points", "Rival");
-//    write_client(sender->sock, table);
-
-//    (*currentMatches)++;
-//    free(table);
-
-//    // printf("[SERVER DEBUG] accept_challenge end\n");
-// }
 static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *sender, const char *buffer)
 {
    if (sender->challengedFrom == NULL)
@@ -661,7 +562,6 @@ static void accept_challenge(ServerMatch *matches, int *currentMatches, Client *
       challenger->player = 1; // Player 2
    }
 
-   // Initialize the match with board
    matchInit(&matches[*currentMatches], *currentMatches, 0, 1, 1);
 
    if (sender->private == 1 || challenger->private == 1)
@@ -735,90 +635,6 @@ static void refuse_challenge(Client *sender, const char *buffer)
    // printf("[SERVER DEBUG] refuse_challenge end\n");
 }
 
-// TODO : changer les printTable
-// static void play_move(ServerMatch *matches, Client *sender, int relatifMove, int *currentMatches)
-// {
-
-//    // printf("[SERVER DEBUG] play_move\n");
-//    // printf("[SERVER DEBUG] relatifMove: %d\n", relatifMove);
-//    if (sender->match == NULL)
-//    {
-//       write_client(sender->sock, "You are not in a game. To start one you can !challenge a player\n");
-//       return;
-//    }
-//    if (sender->player != sender->match->joueur)
-//    {
-//       write_client(sender->sock, "It's not your turn to play. Wait for your opponet to play his move\n");
-//       return;
-//    }
-
-//    int move = sender->player == PLAYER1 ? relatifMove : relatifMove + 6;
-//    int gameEnded = gameLoop(sender->match->tab, &(sender->match->joueur), move, &(sender->match->pointsP1), &(sender->match->pointsP2));
-
-//    if (gameEnded == -1)
-//    {
-//       write_client(sender->sock, "Invalid move, try again\n");
-//       return;
-//    }
-//    else if (gameEnded == 0)
-//    {
-//       // printf("[gameEnded DEBUG] sender->player %i\n", sender->player);
-//       // printf("[gameEnded DEBUG] sender->opponent->player %i\n", sender->opponent->player);
-//       // printf("[gameEnded DEBUG] pointsP1 %i, pointsP2 %i\n", sender->match->pointsP1, sender->match->pointsP2);
-//       char *table = malloc(256 * sizeof(char));
-//       printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
-//       write_client(sender->sock, table);
-//       printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
-//       write_client(sender->opponent->sock, table);
-//       free(table);
-//    }
-//    else if (gameEnded == 1 || gameEnded == 2)
-//    {
-//       char *table = malloc(256 * sizeof(char));
-//       if ((gameEnded == 1 && sender->player == PLAYER1) || (gameEnded == 2 && sender->player == PLAYER2)) // Sender won
-//       {
-//          printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
-//          write_client(sender->sock, table);
-//          write_client(sender->sock, "You won!\n");
-//          printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
-//          write_client(sender->opponent->sock, table);
-//          write_client(sender->opponent->sock, "You lost!\n");
-//       }
-//       else // Opponent won
-//       {
-//          printTable(sender->match->tab, sender->opponent->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
-//          write_client(sender->opponent->sock, table);
-//          write_client(sender->opponent->sock, "You won!\n");
-//          printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, "Your points", "Rival");
-//          write_client(sender->sock, table);
-//          write_client(sender->sock, "You lost!\n");
-//       }
-
-//       // TODO : rajouter la logique pour écrire le match dans le CSV
-
-//       remove_match(matches, sender->match, &currentMatches);
-
-//       sender->match = NULL;
-//       sender->opponent->match = NULL;
-//       sender->opponent->opponent = NULL;
-//       sender->opponent = NULL;
-//       free(table);
-//    }
-//    if (1)
-//    {
-//       char *table = malloc(256 * sizeof(char));
-//       printTable(sender->match->tab, sender->player, sender->match->pointsP1, sender->match->pointsP2, table, 256, sender->name, sender->opponent->name);
-//       // printf("[gameEnded DEBUG] sender->match->observers %i\n", sender->match->observers[0]);
-//       for (int i = 0; i < MAX_CLIENTS; i++)
-//       {
-//          if (sender->match->observers[i] != NULL)
-//          {
-//             write_client(sender->match->observers[i]->sock, table);
-//          }
-//       }
-//       free(table);
-//    }
-// }
 static void play_move(ServerMatch *matches, Client *sender, int relativeMove, int *currentMatches)
 {
    if (sender->match == NULL)
@@ -866,7 +682,7 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
    }
    else if (gameEnded == 1 || gameEnded == 2)
    {
-      // Game ended - determine winner
+      // Game ended
       if ((gameEnded == 1 && sender->player == 0) || (gameEnded == 2 && sender->player == 1))
       {
          // Sender won
@@ -898,7 +714,6 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
          write_client(sender->sock, "You lost!\n");
       }
 
-      // Clean up match
       remove_match(matches, sender->match, currentMatches);
       matchDestroy(sender->match);
 
@@ -923,7 +738,6 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
    free(table);
 }
 
-// TODO : check if username availabe, persist it in the csv
 static void change_client_profile(Client *sender, const char *new_profile)
 {
    strncpy(sender->profile, new_profile, sizeof(sender->profile) - 1);
@@ -995,7 +809,6 @@ static void send_list_of_ongoing_matches(ServerMatch *matches, int currentMatche
    }
 }
 
-// TODO : changer play_move logic
 static void play_command(Client *sender, const char *bufferm, ServerMatch *matches, int *currentMatches, const char *buffer)
 {
    // printf("[SERVER DEBUG] %c\n", buffer[6]);
@@ -1099,40 +912,6 @@ static void send_friend_req(Client *clients, Client *sender, char *name, int act
          strncat(message, " wants to add you as a friend!\nWrite !accept [name] to accept an !reject [name] to refuse", sizeof message - strlen(message) - 1);
          write_client(clients[i].sock, message);
 
-         /*printf("[SERVER DEBUG] Sender: %s\n", sender->name);
-         printf("[SERVER DEBUG] Friends:\n");
-         for(int j = 0; j < sender->actualFriends; j++)
-         {
-            printf("[SERVER DEBUG] \t%s\n", sender->friends[j]);
-         }
-         printf("[SERVER DEBUG] Friend requests:\n");
-         for(int j = 0; j < sender->actualFriendRequests; j++)
-         {
-            printf("[SERVER DEBUG] \t%s\n", sender->friendRequests[j]->name);
-         }
-         printf("[SERVER DEBUG] Friend requests sent:\n");
-         for(int j = 0; j < sender->actualFriendRequestsSent; j++)
-         {
-            printf("[SERVER DEBUG] \t%s\n", sender->friendRequestsSent[j]->name);
-         }
-
-         printf("[SERVER DEBUG] Client: %s\n", clients[i].name);
-         printf("[SERVER DEBUG] Friends:\n");
-         for(int j = 0; j < clients[i].actualFriends; j++)
-         {
-            printf("[SERVER DEBUG] \t%s\n", clients[i].friends[j]);
-         }
-         printf("[SERVER DEBUG] Friend requests:\n");
-         for(int j = 0; j < clients[i].actualFriendRequests; j++)
-         {
-            printf("[SERVER DEBUG] \t%s\n", clients[i].friendRequests[j]->name);
-         }
-         printf("[SERVER DEBUG] Friend requests sent:\n");
-         for(int j = 0; j < clients[i].actualFriendRequestsSent; j++)
-         {
-            printf("[SERVER DEBUG] \t%s\n", clients[i].friendRequestsSent[j]->name);
-         }*/
-
          break;
       }
    }
@@ -1162,10 +941,9 @@ static void accept_friend_req(Client *sender, char *name)
          sender->actualFriends++;
          sender->friendRequests[i]->actualFriends++;
 
-         // Remove friend request
          memmove(sender->friendRequests + i, sender->friendRequests + i + 1, (sender->actualFriendRequests - i - 1) * sizeof(Client *));
          sender->actualFriendRequests--;
-         // Remove friend request sent
+
          for (int j = 0; j < friend->actualFriendRequestsSent; j++)
          {
             if (strcmp(friend->friendRequestsSent[j]->name, sender->name) == 0)
@@ -1207,10 +985,9 @@ static void reject_friend_req(Client *sender, char *name)
          found = 1;
          Client *friend = sender->friendRequests[i];
 
-         // Remove friend request
          memmove(sender->friendRequests + i, sender->friendRequests + i + 1, (sender->actualFriendRequests - i - 1) * sizeof(Client *));
          sender->actualFriendRequests--;
-         // Remove friend request sent
+
          for (int j = 0; j < friend->actualFriendRequestsSent; j++)
          {
             if (strcmp(friend->friendRequestsSent[j]->name, sender->name) == 0)
@@ -1298,10 +1075,11 @@ bool login(char *username, char *password)
    {
       return true;
    }
-   printf("Login not recognized");
-   return false;
+
+   bool succeeded = data_login(username, password);
+   return succeeded;
 }
-// Message analyser-----------------------------------------------------------------------------------------------------------------
+// Message analyser---------------------------------
 
 static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *clients, Client *sender, int actual, char *buffer)
 {
@@ -1352,13 +1130,12 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
                write_client(sender->sock, "Invalid signup. Correct usage is -signup [username] [password]\n");
                return;
             }
-            // if (!signup(user, pswrd))
-            // {
-            //    write_client(sender->sock, "This user is already taken, usernames are unique. Try an other one!\n");
-            //    return;
-            // }
+            if (!data_signup(user, pswrd))
+            {
+               write_client(sender->sock, "This user is already taken, usernames are unique. Try an other one!\n");
+               return;
+            }
 
-            // printf("[SERVER DEBUG] %s %s\n", user, pswrd);
             strcpy(sender->name, user);
             write_client(sender->sock, "Welcome, try -commands if it's been a while\n");
             return;
@@ -1386,11 +1163,10 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
             *msg = 0;
             msg++;
             send_message_to_client_by_name(clients, name, actual, msg, sender);
-            printf("Message sent !\n");
          }
          else
          {
-            printf("Usage: /msg [online-client] [message]\n");
+            write_client(sender->sock, "Usage: /msg [online-client] [message]\n");
          }
       }
 
