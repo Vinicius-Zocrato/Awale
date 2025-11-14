@@ -9,21 +9,24 @@ bool boardIsMoveLegal(const Board *b, int pit, int playerMatchId)
         return false;
     }
 
-    if (b->whoseTurn != playerMatchId)
-    {
-        printf("It's Player %d's turn, and you're Player %d !\n", b->whoseTurn + 1, playerMatchId + 1);
-
-        return false;
-    }
     if (pit <= 0 || pit > 12)
         return false;
 
-    if (b->pits[pit] == 0)
+    int idx = pit - 1; /* zero-based index for array access */
+
+    if (b->whoseTurn != playerMatchId)
+    {
+        printf("It's Player %d's turn, and you're Player %d !\n", b->whoseTurn + 1, playerMatchId + 1);
+        return false;
+    }
+
+    if (b->pits[idx] == 0)
     {
         printf("No stones in the pit\n");
         return false;
     }
 
+    /* keep these checks with 1-based pit values */
     if (b->whoseTurn == 0 && pit > 6)
     {
         printf("Player 1 must play in pits 1 to 6\n");
@@ -85,33 +88,24 @@ void boardPrint(const Board *b)
         return;
     }
 
-    if (b->whoseTurn == 0)
-    {
-        printf("Board State:\n");
-        printf("| ");
-        for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[11 - i]);
-        printf("\n-------------------------\n| ");
-        for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[i]);
-        printf("\n");
-        printf("Next turn: Player %d\n", b->whoseTurn + 1);
-        printf("Board sens: %d\n\n", b->sens);
-    }
+    printf("Board State:\n");
+    /* top row: pits 7..12 => indices 6..11 left-to-right */
+    printf("  ");
+    for (int i = 6; i <= 11; i++)
+        printf("%2d ", b->pits[i]);
+    printf("\n");
 
-    else
-    {
-        printf("Board State:\n");
-        printf("| ");
-        for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[6 - i - 1]);
-        printf("\n-------------------------\n| ");
-        for (int i = 0; i < 6; i++)
-            printf("%d | ", b->pits[i + 6]);
-        printf("\n");
-        printf("Next turn: Player %d\n", b->whoseTurn + 1);
-        printf("Board sens: %d\n\n", b->sens);
-    }
+    /* separator */
+    printf("-------------------------\n");
+
+    /* bottom row: pits 1..6 => indices 0..5 left-to-right */
+    printf("  ");
+    for (int i = 0; i <= 5; i++)
+        printf("%2d ", b->pits[i]);
+    printf("\n");
+
+    printf("Next turn: Player %d\n", b->whoseTurn + 1);
+    printf("Board sens: %d\n\n", b->sens);
 }
 
 void boardStartGame(Board *b, int direction)

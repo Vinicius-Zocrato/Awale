@@ -461,8 +461,8 @@ static void printTable(const Board *board, int playerNum, int pointsP1, int poin
    len += snprintf(out + len, outSize - len, "%s: %d    %s: %d\n",
                    labelYou, yourPoints, labelRival, rivalPoints);
 
-   // Top row (pits 12..7 for player 2's view, reversed)
-   len += snprintf(out + len, outSize - len, "  ");
+   // Top row: pits 12..7 -> indices 11..6 (printed left-to-right as 11 10 9 8 7 6)
+   len += snprintf(out + len, outSize - len, "    ");
    for (int i = 11; i >= 6 && len < outSize; i--)
    {
       len += snprintf(out + len, outSize - len, " %2d ", board->pits[i]);
@@ -477,8 +477,8 @@ static void printTable(const Board *board, int playerNum, int pointsP1, int poin
    }
    len += snprintf(out + len, outSize - len, "\n  ");
 
-   // Bottom row (pits 1..6 for player 1's view)
-   for (int i = 0; i < 6 && len < outSize; i++)
+   // Bottom row: pits 1..6 -> indices 0..5 (left-to-right)
+   for (int i = 0; i <= 5 && len < outSize; i++)
    {
       len += snprintf(out + len, outSize - len, " %2d ", board->pits[i]);
    }
@@ -488,11 +488,17 @@ static void printTable(const Board *board, int playerNum, int pointsP1, int poin
 static int gameLoop(ServerMatch *m, int pit, int playerNum)
 {
    if (m == NULL || m->board == NULL)
+   {
+      printf("match or board not instanciated\n");
       return -1;
+   }
 
    // Verify move is legal
    if (!boardIsMoveLegal(m->board, pit, playerNum))
+   {
+      printf("move %d by player %d not legal\n", pit, playerNum);
       return -1;
+   }
 
    // Execute move and get points
    int points = boardMove(m->board, pit);
@@ -501,7 +507,7 @@ static int gameLoop(ServerMatch *m, int pit, int playerNum)
 
    // Update scores (boardMove already switched player, so we use the previous player)
    m->scores[playerNum] += points;
-
+   m->joueur = m->board->whoseTurn;
    // Check if game is over
    if (matchIsGameOver(m))
    {
@@ -832,6 +838,7 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
    {
       move += 6;
    }
+   printf("relative move: %d\n", relativeMove);
 
    // Execute move and check game status
    int gameEnded = gameLoop(sender->match, move, sender->player);
@@ -850,13 +857,11 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
       printTable(sender->match->board, sender->player,
                  sender->match->scores[0], sender->match->scores[1],
                  table, 512, "Your points", "Rival");
-      write_client(sender->sock, "It's your opponents turn");
       write_client(sender->sock, table);
 
       printTable(sender->match->board, sender->opponent->player,
                  sender->match->scores[0], sender->match->scores[1],
                  table, 512, "Your points", "Rival");
-      write_client(sender->sock, "It's your turn");
       write_client(sender->opponent->sock, table);
    }
    else if (gameEnded == 1 || gameEnded == 2)
@@ -1000,7 +1005,7 @@ static void play_command(Client *sender, const char *bufferm, ServerMatch *match
       return;
    }
    int move = buffer[6] - '0';
-   play_move(matches, sender, move - 1, currentMatches); // Function takes 0 to 5 as a move
+   play_move(matches, sender, move, currentMatches); // Function takes 0 to 5 as a move
 }
 
 static void watch_match(ServerMatch *matches, int currentMatches, Client *sender, const char *buffer)
@@ -1274,6 +1279,7 @@ static void command_list(Client *sender)
    write_client(sender->sock, "/reject [name]: reject a friend request\n");
    write_client(sender->sock, "/private: go in private mode\n");
    write_client(sender->sock, "/public: go in public mode\n");
+   write_client(sender->sock, "/msg-all [message]: message all\n");
    write_client(sender->sock, "/commands: list of commands\n");
    write_client(sender->sock, "/play [move]: plays a move in pit number, if game is launched\n");
 }
@@ -1285,6 +1291,10 @@ bool login(char *username, char *password)
       return true;
    }
    if (strcmp(username, "test2") == 0 || strcmp(password, "test2") == 0)
+   {
+      return true;
+   }
+   if (strcmp(username, "test3") == 0 || strcmp(password, "test3") == 0)
    {
       return true;
    }
@@ -1342,7 +1352,7 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
                write_client(sender->sock, "Invalid signup. Correct usage is -signup [username] [password]\n");
                return;
             }
-            // if (!singin(user, pswrd))
+            // if (!signup(user, pswrd))
             // {
             //    write_client(sender->sock, "This user is already taken, usernames are unique. Try an other one!\n");
             //    return;
@@ -1384,21 +1394,19 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
          }
       }
 
-      // else if (strncmp(buffer, "-msg-all ", 5) == 0)
-      // {
-      //    char *name = buffer + 5;
-      //    char *msg = strchr(name, ' ');
-      //    if (msg != NULL)
-      //    {
-      //       *msg = 0;
-      //       msg++;
-      //       send_message_to_client_by_name(clients, name, actual, msg, sender);
-      //    }
-      //    else
-      //    {
-      //       printf("Usage: -msg [online-client] [message]\n");
-      //    }
-      // }
+      else if (strncmp(buffer, "/msg-all ", 8) == 0)
+      {
+         char *message = buffer + 8;
+         if (message == NULL)
+         {
+            write_client(sender->sock, "Usage: /msg-all [message]");
+         }
+         else
+         {
+            write_client(sender->sock, "Message sent to all");
+            send_message_to_all_clients(clients, *sender, actual, buffer, 0);
+         }
+      }
 
       else if (strncmp(buffer, "/challenge ", 11) == 0)
       {
@@ -1506,6 +1514,6 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
    }
    else
    {
-      send_message_to_all_clients(clients, *sender, actual, buffer, 0);
+      write_client(sender->sock, "Command not recognized");
    }
 }

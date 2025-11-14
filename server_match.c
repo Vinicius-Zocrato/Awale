@@ -26,6 +26,7 @@ void matchInit(ServerMatch *m, int id, int playerId1, int playerId2, int sens)
         return;
     }
     boardStartGame(m->board, sens);
+    m->joueur = m->board->whoseTurn;
 }
 
 void matchMove(ServerMatch *m, int pit)
