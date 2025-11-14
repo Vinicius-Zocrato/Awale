@@ -436,7 +436,7 @@ static void challenge(Client *clients, Client *sender, const char *name, int act
             }
          }
          strncpy(message, sender->name, BUF_SIZE - 1);
-         strncat(message, " is challenging you!\nWrite !yes to accept an !no to refuse", sizeof message - strlen(message) - 1);
+         strncat(message, " is challenging you!\nWrite /yes to accept an /no to refuse", sizeof message - strlen(message) - 1);
          // strncat(message, buffer, sizeof message - strlen(message) - 1);
          write_client(clients[i].sock, message);
          clients[i].challengedFrom = sender;
@@ -820,9 +820,18 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
       write_client(sender->sock, "You are not in a game. To start one you can !challenge a player\n");
       return;
    }
+   if (sender->player != sender->match->joueur)
+   {
+      printf("%d", sender->player);
+      write_client(sender->sock, "It's not your turn to play. Wait for your opponet to play his move\n");
+      return;
+   }
 
-   // Convert relative move (0-5) to absolute pit (1-12)
-   int move = sender->player == 0 ? relativeMove + 1 : relativeMove + 7;
+   int move = relativeMove;
+   if (sender->player == PLAYER2)
+   {
+      move += 6;
+   }
 
    // Execute move and check game status
    int gameEnded = gameLoop(sender->match, move, sender->player);
@@ -841,11 +850,13 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
       printTable(sender->match->board, sender->player,
                  sender->match->scores[0], sender->match->scores[1],
                  table, 512, "Your points", "Rival");
+      write_client(sender->sock, "It's your opponents turn");
       write_client(sender->sock, table);
 
       printTable(sender->match->board, sender->opponent->player,
                  sender->match->scores[0], sender->match->scores[1],
                  table, 512, "Your points", "Rival");
+      write_client(sender->sock, "It's your turn");
       write_client(sender->opponent->sock, table);
    }
    else if (gameEnded == 1 || gameEnded == 2)
@@ -1394,11 +1405,11 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
          char *name = buffer + 11;
          if (name == NULL)
          {
-            printf("Usage: /challenge [online-player]");
+            write_client(sender->sock, "Usage: /challenge [online-player]");
          }
          else
          {
-            printf("Player challenged", name);
+            write_client(sender->sock, "Player challenged");
             challenge(clients, sender, name, actual, buffer);
          }
       }
@@ -1408,7 +1419,7 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
          char *name = buffer + 9;
          if (name == NULL)
          {
-            printf("Usage: /play-move [move]");
+            write_client(sender->sock, "Usage: /play-move [move]");
          }
          else
          {
@@ -1436,7 +1447,7 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
          char *new_profile = buffer + 12;
          if (new_profile == NULL)
          {
-            printf("Usage: /update-profile [new-username]");
+            write_client(sender->sock, "Usage: /update-profile [new-username]");
          }
          else
          {
@@ -1449,7 +1460,7 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
          char *name = buffer + 9;
          if (name == NULL)
          {
-            printf("Usage: /profile [username]");
+            write_client(sender->sock, "Usage: /profile [username]");
          }
          view_client_profile(clients, *sender, actual, name);
       }
