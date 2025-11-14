@@ -403,7 +403,7 @@ static void challenge(Client *clients, Client *sender, const char *name, int act
    }
    if (sender->challengedFrom != NULL)
    {
-      write_client(sender->sock, "You have already been challenged. First answer with !yes or !no\n");
+      write_client(sender->sock, "You have already been challenged. First answer with /yes or /no\n");
       return;
    }
 
@@ -907,6 +907,7 @@ static void play_move(ServerMatch *matches, Client *sender, int relativeMove, in
    free(table);
 }
 
+// TODO : check if username availabe, persist it in the csv
 static void change_client_profile(Client *sender, const char *new_profile)
 {
    strncpy(sender->profile, new_profile, sizeof(sender->profile) - 1);
@@ -1250,19 +1251,20 @@ static void go_public(Client *sender)
 static void command_list(Client *sender)
 {
    write_client(sender->sock, "\nList of commands:\n");
-   write_client(sender->sock, "!list: list of connected clients\n");
-   write_client(sender->sock, "!msg <name> <message>: send a message to a client\n");
-   write_client(sender->sock, "!challenge <name>: challenge a client\n");
-   write_client(sender->sock, "!newprofile <profile>: change your profile\n");
-   write_client(sender->sock, "!profile <name>: view the profile of a client\n");
-   write_client(sender->sock, "!matches: list of ongoing matches\n");
-   write_client(sender->sock, "!watch <name>: watch a match\n");
-   write_client(sender->sock, "!friend <name>: send a friend request\n");
-   write_client(sender->sock, "!accept <name>: accept a friend request\n");
-   write_client(sender->sock, "!reject <name>: reject a friend request\n");
-   write_client(sender->sock, "!private: go in private mode\n");
-   write_client(sender->sock, "!public: go in public mode\n");
-   write_client(sender->sock, "!commands: list of commands\n");
+   write_client(sender->sock, "/list: list of connected players\n");
+   write_client(sender->sock, "/msg [online-player] [message]: send a message to a player\n");
+   write_client(sender->sock, "/challenge [online-player]: challenge a player\n");
+   write_client(sender->sock, "/update-profile [new-username]: change your username\n");
+   write_client(sender->sock, "/profile [username]: view the profile of a player\n");
+   write_client(sender->sock, "/matches: list of ongoing matches\n");
+   write_client(sender->sock, "/watch [name]: watch a match\n");
+   write_client(sender->sock, "/friend [name]: send a friend request\n");
+   write_client(sender->sock, "/accept [name]: accept a friend request\n");
+   write_client(sender->sock, "/reject [name]: reject a friend request\n");
+   write_client(sender->sock, "/private: go in private mode\n");
+   write_client(sender->sock, "/public: go in public mode\n");
+   write_client(sender->sock, "/commands: list of commands\n");
+   write_client(sender->sock, "/play [move]: plays a move in pit number, if game is launched\n");
 }
 
 bool login(char *username, char *password)
@@ -1280,16 +1282,14 @@ bool login(char *username, char *password)
 }
 // Message analyser-----------------------------------------------------------------------------------------------------------------
 
-// TODO : enlever signin, changer les commandes pour avoir un truc plus lisible et peut-etre bloquer leurs appels si on est en match
 static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *clients, Client *sender, int actual, char *buffer)
 {
    if (sender->name[0] == '\0')
    {
       // printf("[SERVER DEBUG] %s\n", buffer);
-      printf("ok");
-      if (buffer[0] == '!')
+      if (buffer[0] == '/')
       {
-         if (strncmp(buffer, "!login ", 7) == 0)
+         if (strncmp(buffer, "/login ", 7) == 0)
          {
             char *loginfo = buffer + 7;
             // Returns first token
@@ -1299,7 +1299,7 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
 
             if (user == NULL || pswrd == NULL)
             {
-               write_client(sender->sock, "Invalid login. Correct usage is !login [username] [password]\n");
+               write_client(sender->sock, "Invalid login. Correct usage is -login [username] [password]\n");
                return;
             }
             if (username_is_name_taken(clients, actual, user))
@@ -1315,12 +1315,12 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
             }
 
             strcpy(sender->name, user);
-            write_client(sender->sock, "Welcome back, try !commands if it's been a while\n");
+            write_client(sender->sock, "Welcome back, try /commands if it's been a while\n");
             return;
          }
-         else if (strncmp(buffer, "!singin ", 8) == 0)
+         else if (strncmp(buffer, "/signup ", 8) == 0)
          {
-            // printf("[SERVER DEBUG] in singin %s\n", buffer);
+            // printf("[SERVER DEBUG] in signup %s\n", buffer);
             char *loginfo = buffer + 8;
             // Returns first token
             char *user = strtok(loginfo, " ");
@@ -1328,7 +1328,7 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
 
             if (user == NULL || pswrd == NULL)
             {
-               write_client(sender->sock, "Invalid singin. Correct usage is !singin [username] [password]\n");
+               write_client(sender->sock, "Invalid signup. Correct usage is -signup [username] [password]\n");
                return;
             }
             // if (!singin(user, pswrd))
@@ -1339,23 +1339,24 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
 
             // printf("[SERVER DEBUG] %s %s\n", user, pswrd);
             strcpy(sender->name, user);
-            write_client(sender->sock, "Welcome, try !commands if it's been a while\n");
+            write_client(sender->sock, "Welcome, try -commands if it's been a while\n");
             return;
          }
       }
 
-      write_client(sender->sock, "Try !login or !singin to continue\n");
+      write_client(sender->sock, "Try /login or /signup to continue\n");
       return;
    }
+
    printf("[SERVER DEBUG] %s\n", buffer);
-   if (buffer[0] == '!' || buffer[1] == '!')
+   if (buffer[0] == '/')
    {
-      if (strncmp(buffer, "!list", 5) == 0)
+      if (strncmp(buffer, "/list", 5) == 0)
       {
          list_of_online_clients(clients, *sender, actual);
       }
 
-      else if (strncmp(buffer, "!msg ", 5) == 0)
+      else if (strncmp(buffer, "/msg ", 5) == 0)
       {
          char *name = buffer + 5;
          char *msg = strchr(name, ' ');
@@ -1364,69 +1365,126 @@ static void message_analyzer(ServerMatch *matches, int *currentMatches, Client *
             *msg = 0;
             msg++;
             send_message_to_client_by_name(clients, name, actual, msg, sender);
+            printf("Message sent !\n");
+         }
+         else
+         {
+            printf("Usage: /msg [online-client] [message]\n");
          }
       }
 
-      else if (strncmp(buffer, "!challenge ", 11) == 0)
+      // else if (strncmp(buffer, "-msg-all ", 5) == 0)
+      // {
+      //    char *name = buffer + 5;
+      //    char *msg = strchr(name, ' ');
+      //    if (msg != NULL)
+      //    {
+      //       *msg = 0;
+      //       msg++;
+      //       send_message_to_client_by_name(clients, name, actual, msg, sender);
+      //    }
+      //    else
+      //    {
+      //       printf("Usage: -msg [online-client] [message]\n");
+      //    }
+      // }
+
+      else if (strncmp(buffer, "/challenge ", 11) == 0)
       {
          char *name = buffer + 11;
-         challenge(clients, sender, name, actual, buffer);
+         if (name == NULL)
+         {
+            printf("Usage: /challenge [online-player]");
+         }
+         else
+         {
+            printf("Player challenged", name);
+            challenge(clients, sender, name, actual, buffer);
+         }
       }
-      else if (strncmp(buffer, "!yes ", 4) == 0)
+
+      else if (strncmp(buffer, "/play-move ", 9) == 0)
+      {
+         char *name = buffer + 9;
+         if (name == NULL)
+         {
+            printf("Usage: /play-move [move]");
+         }
+         else
+         {
+            challenge(clients, sender, name, actual, buffer);
+         }
+      }
+
+      else if (strncmp(buffer, "/yes ", 4) == 0)
       {
          accept_challenge(matches, currentMatches, sender, buffer);
       }
-      else if (strncmp(buffer, "!no ", 3) == 0)
+      else if (strncmp(buffer, "/no ", 3) == 0)
       {
          refuse_challenge(sender, buffer);
       }
-      else if (strncmp(buffer, "!play ", 5) == 0)
+
+      else if (strncmp(buffer, "/play ", 5) == 0)
       {
          char *move = buffer + 5;
          play_command(sender, move, matches, currentMatches, buffer);
       }
-      else if (strncmp(buffer, "!newprofile ", 12) == 0)
+
+      else if (strncmp(buffer, "/update-profile ", 15) == 0)
       {
          char *new_profile = buffer + 12;
-         change_client_profile(sender, new_profile);
+         if (new_profile == NULL)
+         {
+            printf("Usage: /update-profile [new-username]");
+         }
+         else
+         {
+            change_client_profile(sender, new_profile);
+         }
       }
-      else if (strncmp(buffer, "!profile ", 9) == 0)
+
+      else if (strncmp(buffer, "/profile ", 9) == 0)
       {
          char *name = buffer + 9;
+         if (name == NULL)
+         {
+            printf("Usage: /profile [username]");
+         }
          view_client_profile(clients, *sender, actual, name);
       }
-      else if (strncmp(buffer, "!matches", 7) == 0)
+      else if (strncmp(buffer, "/matches", 7) == 0)
       {
          send_list_of_ongoing_matches(matches, *currentMatches, sender);
       }
-      else if (strncmp(buffer, "!watch ", 7) == 0)
+      else if (strncmp(buffer, "/watch ", 7) == 0)
       {
          watch_match(matches, *currentMatches, sender, buffer);
       }
-      else if (strncmp(buffer, "!friend ", 8) == 0)
+      else if (strncmp(buffer, "/friend ", 8) == 0)
       {
          char *name = buffer + 8;
          send_friend_req(clients, sender, name, actual);
       }
-      else if (strncmp(buffer, "!accept ", 8) == 0)
+      else if (strncmp(buffer, "/accept ", 8) == 0)
       {
          char *name = buffer + 8;
          accept_friend_req(sender, name);
       }
-      else if (strncmp(buffer, "!reject ", 7) == 0)
+      else if (strncmp(buffer, "/reject ", 7) == 0)
       {
          char *name = buffer + 7;
          reject_friend_req(sender, name);
       }
-      else if (strncmp(buffer, "!private", 8) == 0)
+      else if (strncmp(buffer, "/private", 8) == 0)
       {
          go_private(sender);
       }
-      else if (strncmp(buffer, "!public", 7) == 0)
+      else if (strncmp(buffer, "/public", 7) == 0)
       {
          go_public(sender);
       }
-      else if (strncmp(buffer, "!command", 8) == 0)
+      else if (strncmp(buffer, "/command", 8) == 0 || strncmp(buffer, "/commands", 9) == 0)
       {
          command_list(sender);
       }
